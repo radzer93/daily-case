@@ -1,4 +1,6 @@
-/// Postęp gracza w jednej sprawie i statystyki ogólne.
+import '../logic/rules.dart';
+import 'case_file.dart';
+
 class Attempt {
   const Attempt({
     required this.culprit,
@@ -10,8 +12,6 @@ class Attempt {
   final String culprit;
   final String motive;
   final String evidence;
-
-  /// [sprawca, motyw, dowód] – czy trafiony.
   final List<bool> result;
 
   bool get correct => result.every((b) => b);
@@ -28,74 +28,60 @@ class Attempt {
 }
 
 class CaseProgress {
-  CaseProgress({
-    List<Attempt>? attempts,
-    Set<String>? hints,
-    Set<String>? excluded,
+  const CaseProgress({
+    this.attempts = const [],
+    this.unlocked = const {},
+    this.hintTexts = const {},
     this.done = false,
     this.won = false,
-  })  : attempts = attempts ?? <Attempt>[],
-        hints = hints ?? <String>{},
-        excluded = excluded ?? <String>{};
+    this.expired = false,
+    this.score = 0,
+    this.solution,
+  });
 
+  static const empty = CaseProgress();
   final List<Attempt> attempts;
+  final Set<String> unlocked;
+  final Map<String, String> hintTexts;
+  final bool done;
+  final bool won;
+  final bool expired;
+  final int score;
+  final Solution? solution;
 
-  /// Odsłonięte ekspertyzy (id dowodów).
-  final Set<String> hints;
+  int get attemptsLeft => maxAttempts - attempts.length;
 
-  /// Podejrzani wykluczeni przez gracza (tylko pomoc w notatkach).
-  final Set<String> excluded;
-  bool done;
-  bool won;
+  bool get dismissed => !won && attempts.length >= maxAttempts;
 
-  Map<String, dynamic> toJson() => {
-        'attempts': attempts.map((a) => a.toJson()).toList(),
-        'hints': hints.toList(),
-        'excluded': excluded.toList(),
-        'done': done,
-        'won': won,
-      };
+  bool get lapsed => done && !won && !dismissed;
 
   factory CaseProgress.fromJson(Map<String, dynamic> j) => CaseProgress(
         attempts: (j['attempts'] as List? ?? const [])
             .map((a) => Attempt.fromJson(Map<String, dynamic>.from(a as Map)))
             .toList(),
-        hints: Set<String>.from(j['hints'] as List? ?? const []),
-        excluded: Set<String>.from(j['excluded'] as List? ?? const []),
+        unlocked: Set<String>.from(j['unlocked'] as List? ?? const []),
+        hintTexts: Map<String, String>.from(j['hints'] as Map? ?? const {}),
         done: j['done'] as bool? ?? false,
         won: j['won'] as bool? ?? false,
+        expired: j['expired'] as bool? ?? false,
+        score: (j['score'] as num?)?.toInt() ?? 0,
+        solution: j['solution'] == null
+            ? null
+            : Solution.fromJson(Map<String, dynamic>.from(j['solution'] as Map)),
       );
 }
 
 class Stats {
-  Stats({
-    this.streak = 0,
-    this.lastWin = 0,
-    this.best = 0,
-    this.played = 0,
-    this.won = 0,
-  });
+  const Stats({this.streak = 0, this.best = 0, this.played = 0, this.won = 0});
+  final int streak;
+  final int best;
+  final int played;
+  final int won;
 
-  /// Seria rozwiązanych spraw dnia z rzędu.
-  int streak;
-
-  /// Numer dnia ostatniej wygranej.
-  int lastWin;
-  int best;
-  int played;
-  int won;
-
-  Map<String, dynamic> toJson() => {
-        'streak': streak,
-        'lastWin': lastWin,
-        'best': best,
-        'played': played,
-        'won': won,
-      };
+  int get winRate => played == 0 ? 0 : (100 * won / played).round();
 
   factory Stats.fromJson(Map<String, dynamic> j) => Stats(
         streak: (j['streak'] as num?)?.toInt() ?? 0,
-        lastWin: (j['lastWin'] as num?)?.toInt() ?? 0,
         best: (j['best'] as num?)?.toInt() ?? 0,
         played: (j['played'] as num?)?.toInt() ?? 0,
         won: (j['won'] as num?)?.toInt() ?? 0,

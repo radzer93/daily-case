@@ -1,15 +1,11 @@
-# ==========================================================
-# daily-case – pliki, które NIE trafiają do repozytorium
-# ==========================================================
-
-# ---------- Sekrety (klucze API, hasła) ----------
 .env
 .env.*
 !.env.example
+env.json
+supabase/functions/.env
 *.pem
 secrets.json
 
-# ---------- Flutter / Dart ----------
 .dart_tool/
 .packages
 .pub-cache/
@@ -20,7 +16,6 @@ coverage/
 .flutter-plugins-dependencies
 *.log
 
-# ---------- IDE i system ----------
 .idea/
 *.iml
 *.ipr
@@ -31,7 +26,6 @@ coverage/
 Thumbs.db
 desktop.ini
 
-# ---------- Android ----------
 android/.gradle/
 android/.kotlin/
 android/captures/
@@ -45,7 +39,6 @@ android/app/.cxx/
 *.jks
 *.keystore
 
-# ---------- iOS ----------
 ios/Pods/
 ios/.symlinks/
 ios/Flutter/ephemeral/
@@ -62,6 +55,5 @@ ios/Runner/GeneratedPluginRegistrant.*
 *.moved-aside
 DerivedData/
 
-# ---------- Supabase (na przyszłość) ----------
 supabase/.temp/
 supabase/.branches/

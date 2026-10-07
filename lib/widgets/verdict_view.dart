@@ -11,7 +11,6 @@ import 'buttons.dart';
 
 class VerdictView extends StatelessWidget {
   const VerdictView({super.key, required this.controller});
-
   final GameController controller;
 
   @override
@@ -20,8 +19,45 @@ class VerdictView extends StatelessWidget {
     final p = controller.progress;
     final cf = controller.current;
     final stats = controller.stats;
-    final share = controller.shareText;
-    final rate = stats.played == 0 ? 0 : (100 * stats.won / stats.played).round();
+    final solution = p.solution;
+    final bold = const TextStyle(fontWeight: FontWeight.w600);
+
+    final String stamp;
+    final List<InlineSpan> lead;
+    if (p.won) {
+      stamp = 'Sprawa zamknięta';
+      lead = [
+        const TextSpan(text: 'Prokurator przyjmuje akt oskarżenia. Wynik: '),
+        TextSpan(text: '${p.score} pkt', style: bold),
+        const TextSpan(text: '.'),
+      ];
+    } else if (p.dismissed) {
+      stamp = 'Sprawa umorzona';
+      lead = solution == null
+          ? [const TextSpan(text: 'Trzy chybione oskarżenia. Rozwiązanie odtajnimy jutro po północy.')]
+          : [
+              const TextSpan(text: 'Trzy chybione oskarżenia. Sprawcą był(a) '),
+              TextSpan(text: cf.suspectName(solution.culprit), style: bold),
+              const TextSpan(text: '.'),
+            ];
+    } else if (p.lapsed) {
+      stamp = 'Sprawa przepadła';
+      lead = [
+        TextSpan(
+          text: p.attempts.isEmpty
+              ? 'Ta sprawa minęła bez Twojego śledztwa.'
+              : 'Północ minęła przed rozwiązaniem.',
+        ),
+        if (solution != null) ...[
+          const TextSpan(text: ' Sprawcą był(a) '),
+          TextSpan(text: cf.suspectName(solution.culprit), style: bold),
+          const TextSpan(text: '.'),
+        ],
+      ];
+    } else {
+      stamp = 'Sprawa w toku';
+      lead = const [TextSpan(text: 'Wróć do sprawy dnia, żeby ją rozwiązać.')];
+    }
 
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 22, 18, 22),
@@ -33,99 +69,108 @@ class VerdictView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _Stamp(text: p.won ? 'Sprawa zamknięta' : 'Sprawa umorzona'),
+          _Stamp(text: stamp),
           const SizedBox(height: 18),
-          Text.rich(
-            TextSpan(
-              style: bodyStyle(color: c.ink),
-              children: p.won
-                  ? [
-                      const TextSpan(text: 'Prokurator przyjmuje akt oskarżenia. Wynik: '),
-                      TextSpan(text: '${score(p)} pkt', style: const TextStyle(fontWeight: FontWeight.w600)),
-                      const TextSpan(text: '.'),
-                    ]
-                  : [
-                      const TextSpan(text: 'Trzy chybione oskarżenia. Sprawcą był(a) '),
-                      TextSpan(
-                        text: cf.suspectName(cf.solution.culprit),
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      const TextSpan(text: '.'),
-                    ],
+          Text.rich(TextSpan(style: bodyStyle(color: c.ink), children: lead)),
+          if (controller.isDaily) ...[
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                _Stat(value: '${stats.played}', label: 'Spraw dnia'),
+                _Stat(value: '${stats.winRate}%', label: 'Rozwiązanych'),
+                _Stat(value: '${stats.streak}', label: 'Seria'),
+                _Stat(value: '${stats.best}', label: 'Najdłuższa'),
+              ],
             ),
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              _Stat(value: '${stats.played}', label: 'Spraw dnia'),
-              _Stat(value: '$rate%', label: 'Rozwiązanych'),
-              _Stat(value: '${controller.streakNow}', label: 'Seria'),
-              _Stat(value: '${stats.best}', label: 'Najdłuższa'),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: c.bg,
-              border: Border.all(color: c.line),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: SelectableText(
-              share,
-              style: monoStyle(size: 13, weight: FontWeight.w500, color: c.ink, letterSpacing: 0.2, height: 1.5),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              Builder(
-                builder: (bctx) => PrimaryButton(
-                  label: 'Udostępnij wynik',
-                  onPressed: () {
-                    // iPad wymaga punktu zaczepienia dla okna udostępniania.
-                    final box = bctx.findRenderObject() as RenderBox?;
-                    Share.share(
-                      share,
-                      sharePositionOrigin: box == null ? null : box.localToGlobal(Offset.zero) & box.size,
-                    );
-                  },
-                ),
-              ),
-              OutlineAction(
-                label: 'Kopiuj',
-                onPressed: () async {
-                  await Clipboard.setData(ClipboardData(text: share));
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context)
-                    ..hideCurrentSnackBar()
-                    ..showSnackBar(const SnackBar(content: Text('Wynik skopiowany')));
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          _Countdown(controller: controller),
+          ],
+          if (controller.canShare) ...[
+            const SizedBox(height: 18),
+            _ShareBox(text: controller.shareText),
+          ],
+          if (controller.isDaily) ...[
+            const SizedBox(height: 14),
+            _Countdown(controller: controller),
+          ],
           const SizedBox(height: 22),
           Text('ROZWIĄZANIE', style: displayStyle(size: 24, weight: FontWeight.w800, color: c.ink)),
           const SizedBox(height: 10),
-          for (final para in cf.solution.explain)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Text(para, style: bodyStyle(color: c.ink)),
-            ),
+          if (solution == null)
+            Text(
+              'Akta z rozwiązaniem odtajnimy po północy. Wróć jutro: w archiwum zobaczysz, kto to zrobił i dlaczego.',
+              style: bodyStyle(color: c.muted),
+            )
+          else ...[
+            for (final para in solution.explain)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(para, style: bodyStyle(color: c.ink)),
+              ),
+          ],
         ],
       ),
     );
   }
 }
 
+class _ShareBox extends StatelessWidget {
+  const _ShareBox({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: c.bg,
+            border: Border.all(color: c.line),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: SelectableText(
+            text,
+            style: monoStyle(size: 13, weight: FontWeight.w500, color: c.ink, letterSpacing: 0.2, height: 1.5),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            Builder(
+              builder: (bctx) => PrimaryButton(
+                label: 'Udostępnij wynik',
+                onPressed: () {
+                  final box = bctx.findRenderObject() as RenderBox?;
+                  Share.share(
+                    text,
+                    sharePositionOrigin: box == null ? null : box.localToGlobal(Offset.zero) & box.size,
+                  );
+                },
+              ),
+            ),
+            OutlineAction(
+              label: 'Kopiuj',
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: text));
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context)
+                  ..hideCurrentSnackBar()
+                  ..showSnackBar(const SnackBar(content: Text('Wynik skopiowany')));
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 class _Stamp extends StatelessWidget {
   const _Stamp({required this.text});
-
   final String text;
 
   @override
@@ -156,7 +201,6 @@ class _Stamp extends StatelessWidget {
 
 class _Stat extends StatelessWidget {
   const _Stat({required this.value, required this.label});
-
   final String value;
   final String label;
 
@@ -184,7 +228,6 @@ class _Stat extends StatelessWidget {
 
 class _Countdown extends StatefulWidget {
   const _Countdown({required this.controller});
-
   final GameController controller;
 
   @override
@@ -193,15 +236,25 @@ class _Countdown extends StatefulWidget {
 
 class _CountdownState extends State<_Countdown> {
   late Timer _timer;
-  Duration _left = untilNextDay(DateTime.now());
+  Duration _left = Duration.zero;
+
+  void _tick() {
+    final closes = widget.controller.closesAt;
+    if (closes == null) return;
+    final left = closes.difference(DateTime.now());
+    if (left.isNegative) {
+      widget.controller.refreshIfDayChanged();
+      return;
+    }
+    setState(() => _left = left);
+  }
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (widget.controller.refreshDay()) return; // nowy dzień: ekran się przebuduje
-      setState(() => _left = untilNextDay(DateTime.now()));
-    });
+    final closes = widget.controller.closesAt;
+    if (closes != null) _left = closes.difference(DateTime.now());
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
   }
 
   @override

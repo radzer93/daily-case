@@ -4,15 +4,12 @@ import 'package:flutter/services.dart' show rootBundle;
 
 import '../models/case_file.dart';
 
-/// Źródło spraw. Teraz: plik w aplikacji. Później: np. SupabaseCaseRepository
-/// z tą samą metodą, bez zmian w reszcie kodu.
 abstract class CaseRepository {
   Future<List<CaseFile>> loadCases();
 }
 
 class AssetCaseRepository implements CaseRepository {
   const AssetCaseRepository({this.path = 'assets/cases.json'});
-
   final String path;
 
   @override

@@ -1,15 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_test/flutter_test.dart';
 import 'package:daily_case/models/case_file.dart';
+import 'package:flutter_test/flutter_test.dart';
 
-/// Pilnuje poprawności assets/cases.json. Uruchamiaj po każdej nowej sprawie.
 void main() {
   final raw = jsonDecode(File('assets/cases.json').readAsStringSync()) as List;
   final cases = raw.map((e) => CaseFile.fromJson(e as Map<String, dynamic>)).toList();
 
-  test('jest co najmniej jedna sprawa, id są unikalne', () {
+  test('has at least one case with unique ids', () {
     expect(cases, isNotEmpty);
     final ids = cases.map((c) => c.id).toList();
     expect(ids.toSet().length, ids.length);
@@ -17,28 +16,36 @@ void main() {
 
   for (final c in cases) {
     group(c.id, () {
-      test('rozwiązanie wskazuje istniejące elementy', () {
-        expect(c.suspects.map((s) => s.id), contains(c.solution.culprit));
-        expect(c.motives.map((m) => m.id), contains(c.solution.motive));
-        expect(c.solution.evidence, isNotEmpty);
-        for (final e in c.solution.evidence) {
+      test('has a solution and text for every piece of evidence', () {
+        expect(c.solution, isNotNull);
+        for (final e in c.evidence) {
+          expect(e.text, isNotNull, reason: 'Evidence ${e.id} has no text.');
+        }
+      });
+
+      test('solution references existing elements', () {
+        final sol = c.solution!;
+        expect(c.suspects.map((s) => s.id), contains(sol.culprit));
+        expect(c.motives.map((m) => m.id), contains(sol.motive));
+        expect(sol.evidence, isNotEmpty);
+        for (final e in sol.evidence) {
           expect(c.evidence.map((x) => x.id), contains(e));
         }
       });
 
-      test('da się rozwiązać bez ekspertyz', () {
+      test('is solvable without hints', () {
         final open = c.evidence.where((e) => !e.hint).map((e) => e.id).toSet();
-        expect(c.solution.evidence.any(open.contains), isTrue,
-            reason: 'Przynajmniej jeden rozstrzygający dowód musi być jawny.');
+        expect(c.solution!.evidence.any(open.contains), isTrue,
+            reason: 'At least one key piece of evidence must be public.');
       });
 
-      test('ma wystarczająco opcji do wyboru', () {
+      test('offers enough choices', () {
         expect(c.suspects.length, greaterThanOrEqualTo(3));
         expect(c.motives.length, greaterThanOrEqualTo(3));
-        expect(c.solution.explain, isNotEmpty);
+        expect(c.solution!.explain, isNotEmpty);
       });
 
-      test('id w obrębie sprawy są unikalne', () {
+      test('ids are unique within the case', () {
         final s = c.suspects.map((x) => x.id).toList();
         final e = c.evidence.map((x) => x.id).toList();
         final m = c.motives.map((x) => x.id).toList();
@@ -47,8 +54,16 @@ void main() {
         expect(m.toSet().length, m.length);
       });
 
-      test('sprawa inspirowana ma adnotację o źródle', () {
+      test('inspired case has a source note', () {
         if (c.isInspired) expect(c.note, isNotNull);
+      });
+
+      test('public view hides the solution and hint texts', () {
+        final pub = c.publicView(id: 'x');
+        expect(pub.solution, isNull);
+        for (final e in pub.evidence.where((e) => e.hint)) {
+          expect(e.text, isNull);
+        }
       });
     });
   }

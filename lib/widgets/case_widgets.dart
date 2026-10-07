@@ -5,10 +5,8 @@ import '../models/progress.dart';
 import '../theme.dart';
 import 'buttons.dart';
 
-/// Żółta taśma „Miejsce zdarzenia” pod paskiem aplikacji.
 class PoliceTape extends StatelessWidget {
   const PoliceTape({super.key, required this.words});
-
   final List<String> words;
 
   @override
@@ -45,7 +43,6 @@ class PoliceTape extends StatelessWidget {
 
 class StreakChip extends StatelessWidget {
   const StreakChip({super.key, required this.streak});
-
   final int streak;
 
   @override
@@ -91,7 +88,7 @@ class CaseHeader extends StatelessWidget {
             spacing: 14,
             runSpacing: 2,
             children: [
-              Text('SYGN. AKT ${cf.sygn}',
+              Text('SYGN. AKT ${cf.docket}',
                   style: monoStyle(size: 11, weight: FontWeight.w500, color: c.muted)),
               Text('${cf.place}, ${cf.date}'.toUpperCase(),
                   style: monoStyle(size: 11, weight: FontWeight.w500, color: c.muted)),
@@ -112,7 +109,7 @@ class CaseHeader extends StatelessWidget {
                   borderRadius: BorderRadius.circular(3),
                 ),
                 child: Text(
-                  cf.isInspired ? 'INSPIROWANA PRAWDZIWĄ SPRAWĄ' : 'SPRAWA FIKCYJNA',
+                  cf.kind.badge.toUpperCase(),
                   style: monoStyle(size: 10, color: c.ink),
                 ),
               ),
@@ -126,7 +123,7 @@ class CaseHeader extends StatelessWidget {
               crossAxisAlignment: WrapCrossAlignment.center,
               spacing: 8,
               children: [
-                Text('Z archiwum, nie liczy się do serii.',
+                Text('Sprawa z archiwum. Rozwiązanie jest jawne.',
                     style: monoStyle(size: 11, weight: FontWeight.w500, color: c.muted)),
                 OutlineAction(label: 'Sprawa dnia', onPressed: onBackToDaily, dense: true),
               ],
@@ -138,29 +135,30 @@ class CaseHeader extends StatelessWidget {
   }
 }
 
-/// Dowód jako żółta metka z dziurką na sznurek.
 class EvidenceCard extends StatelessWidget {
   const EvidenceCard({
     super.key,
     required this.number,
     required this.evidence,
-    required this.sygn,
+    required this.text,
+    required this.docket,
     required this.visible,
     required this.onUnlock,
   });
 
   final int number;
   final Evidence evidence;
-  final String sygn;
+  final String? text;
+  final String docket;
   final bool visible;
-  final VoidCallback onUnlock;
+  final VoidCallback? onUnlock;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
     final headBg = visible ? c.tag : c.tagInk;
     final headFg = visible ? c.tagInk : c.tag;
-    final right = !visible ? 'ZASTRZEŻONE' : (evidence.hint ? 'EKSPERTYZA' : sygn);
+    final right = !visible ? 'ZASTRZEŻONE' : (evidence.hint ? 'EKSPERTYZA' : docket);
 
     return Container(
       clipBehavior: Clip.antiAlias,
@@ -202,7 +200,7 @@ class EvidenceCard extends StatelessWidget {
                     style: displayStyle(size: 21, weight: FontWeight.w800, color: c.ink, height: 1.05)),
                 const SizedBox(height: 8),
                 if (visible)
-                  Text(evidence.text, style: bodyStyle(color: c.ink))
+                  Text(text ?? '', style: bodyStyle(color: c.ink))
                 else ...[
                   for (final w in const [0.94, 0.81, 0.58])
                     Padding(
@@ -296,10 +294,8 @@ class SuspectCard extends StatelessWidget {
   }
 }
 
-/// Jeden wiersz wyniku próby: sprawca / motyw / dowód.
 class AttemptRow extends StatelessWidget {
   const AttemptRow({super.key, required this.caseFile, required this.attempt});
-
   final CaseFile caseFile;
   final Attempt attempt;
 
@@ -326,7 +322,6 @@ class AttemptRow extends StatelessWidget {
 
 class _Cell extends StatelessWidget {
   const _Cell({required this.label, required this.value, required this.ok});
-
   final String label;
   final String value;
   final bool ok;

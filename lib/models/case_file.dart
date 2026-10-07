@@ -1,5 +1,7 @@
-/// Model jednej sprawy. Dane pochodzą z assets/cases.json
-/// (później można je pobierać z serwera, format zostaje ten sam).
+import 'case_kind.dart';
+
+export 'case_kind.dart';
+
 class Suspect {
   const Suspect({
     required this.id,
@@ -28,28 +30,25 @@ class Evidence {
   const Evidence({
     required this.id,
     required this.title,
-    required this.text,
+    this.text,
     this.hint = false,
   });
 
   final String id;
   final String title;
-  final String text;
-
-  /// Dowód zastrzeżony: odsłaniany przez ekspertyzę, która kosztuje punkty.
+  final String? text;
   final bool hint;
 
   factory Evidence.fromJson(Map<String, dynamic> j) => Evidence(
         id: j['id'] as String,
         title: j['title'] as String,
-        text: j['text'] as String,
+        text: j['text'] as String?,
         hint: j['hint'] as bool? ?? false,
       );
 }
 
 class Motive {
   const Motive({required this.id, required this.label});
-
   final String id;
   final String label;
 
@@ -67,8 +66,6 @@ class Solution {
 
   final String culprit;
   final String motive;
-
-  /// Dowody uznawane za rozstrzygające (wystarczy wskazać jeden z nich).
   final List<String> evidence;
   final List<String> explain;
 
@@ -85,35 +82,35 @@ class CaseFile {
     required this.id,
     required this.title,
     required this.kind,
-    required this.sygn,
+    required this.docket,
     required this.place,
     required this.date,
     required this.brief,
     required this.suspects,
     required this.evidence,
     required this.motives,
-    required this.solution,
+    this.solution,
     this.note,
+    this.caseDate,
+    this.dayNumber,
   });
 
   final String id;
   final String title;
-
-  /// 'fikcyjna' albo 'inspirowana'.
-  final String kind;
-
-  /// Dla spraw inspirowanych: skąd pochodzi motyw i co zmieniono.
+  final CaseKind kind;
   final String? note;
-  final String sygn;
+  final String docket;
   final String place;
   final String date;
   final List<String> brief;
   final List<Suspect> suspects;
   final List<Evidence> evidence;
   final List<Motive> motives;
-  final Solution solution;
+  final Solution? solution;
+  final String? caseDate;
+  final int? dayNumber;
 
-  bool get isInspired => kind == 'inspirowana';
+  bool get isInspired => kind == CaseKind.inspired;
 
   String suspectName(String id) {
     for (final s in suspects) {
@@ -136,24 +133,47 @@ class CaseFile {
     return '?';
   }
 
+  CaseFile publicView({required String id, int? dayNumber, String? caseDate}) => CaseFile(
+        id: id,
+        title: title,
+        kind: kind,
+        note: note,
+        docket: docket,
+        place: place,
+        date: date,
+        brief: brief,
+        suspects: suspects,
+        evidence: [
+          for (final e in evidence)
+            e.hint ? Evidence(id: e.id, title: e.title, hint: true) : e,
+        ],
+        motives: motives,
+        caseDate: caseDate,
+        dayNumber: dayNumber,
+      );
+
   factory CaseFile.fromJson(Map<String, dynamic> j) => CaseFile(
         id: j['id'] as String,
         title: j['title'] as String,
-        kind: j['kind'] as String,
+        kind: CaseKind.fromWire(j['kind'] as String?),
         note: j['note'] as String?,
-        sygn: j['sygn'] as String,
+        docket: j['docket'] as String,
         place: j['place'] as String,
         date: j['date'] as String,
         brief: List<String>.from(j['brief'] as List),
         suspects: (j['suspects'] as List)
-            .map((e) => Suspect.fromJson(e as Map<String, dynamic>))
+            .map((e) => Suspect.fromJson(Map<String, dynamic>.from(e as Map)))
             .toList(),
         evidence: (j['evidence'] as List)
-            .map((e) => Evidence.fromJson(e as Map<String, dynamic>))
+            .map((e) => Evidence.fromJson(Map<String, dynamic>.from(e as Map)))
             .toList(),
         motives: (j['motives'] as List)
-            .map((e) => Motive.fromJson(e as Map<String, dynamic>))
+            .map((e) => Motive.fromJson(Map<String, dynamic>.from(e as Map)))
             .toList(),
-        solution: Solution.fromJson(j['solution'] as Map<String, dynamic>),
+        solution: j['solution'] == null
+            ? null
+            : Solution.fromJson(Map<String, dynamic>.from(j['solution'] as Map)),
+        caseDate: j['case_date'] as String?,
+        dayNumber: (j['day_number'] as num?)?.toInt(),
       );
 }

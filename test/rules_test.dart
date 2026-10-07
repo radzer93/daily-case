@@ -1,65 +1,45 @@
-import 'package:flutter_test/flutter_test.dart';
 import 'package:daily_case/logic/rules.dart';
-import 'package:daily_case/models/progress.dart';
-
-Attempt _a(List<bool> r) => Attempt(culprit: 'x', motive: 'y', evidence: 'z', result: r);
+import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('dayNumber', () {
-    test('dzień startu ma numer 1, kolejny dzień 2', () {
+    test('launch day is day 1, the next day is day 2', () {
       expect(dayNumber(DateTime(2026, 10, 7, 0, 1)), 1);
       expect(dayNumber(DateTime(2026, 10, 7, 23, 59)), 1);
       expect(dayNumber(DateTime(2026, 10, 8, 0, 1)), 2);
     });
 
-    test('zmiana czasu (25 października) nie psuje numeracji', () {
+    test('DST change (25 October) does not break numbering', () {
       expect(dayNumber(DateTime(2026, 10, 25, 12)), 19);
       expect(dayNumber(DateTime(2026, 10, 26, 0, 30)), 20);
     });
+
+    test('dateOfDay is the inverse of dayNumber', () {
+      expect(dateOfDay(1), '2026-10-07');
+      expect(dateOfDay(26), '2026-11-01');
+    });
   });
 
-  test('sprawy krążą w kółko', () {
+  test('cases rotate in a cycle', () {
     expect(dailyCaseIndex(1, 5), 0);
     expect(dailyCaseIndex(5, 5), 4);
     expect(dailyCaseIndex(6, 5), 0);
     expect(dailyCaseIndex(0, 5), 4);
   });
 
-  group('score', () {
-    test('trafienie za pierwszym razem bez ekspertyz = 100', () {
-      final p = CaseProgress(attempts: [_a([true, true, true])], won: true, done: true);
-      expect(score(p), 100);
+  group('computeScore', () {
+    test('first attempt without hints = 100', () {
+      expect(computeScore(won: true, attempts: 1, hints: 0), 100);
     });
-
-    test('druga próba i jedna ekspertyza = 70', () {
-      final p = CaseProgress(
-        attempts: [_a([true, false, true]), _a([true, true, true])],
-        hints: {'e5'},
-        won: true,
-        done: true,
-      );
-      expect(score(p), 70);
+    test('second attempt with one hint = 70', () {
+      expect(computeScore(won: true, attempts: 2, hints: 1), 70);
     });
-
-    test('trzecia próba i dwie ekspertyzy = 40', () {
-      final won = CaseProgress(
-        attempts: [_a([false, false, false]), _a([false, false, false]), _a([true, true, true])],
-        hints: {'e5', 'e6'},
-        won: true,
-        done: true,
-      );
-      expect(score(won), 40);
+    test('third attempt with two hints = 40', () {
+      expect(computeScore(won: true, attempts: 3, hints: 2), 40);
     });
-
-    test('nigdy poniżej minimum, porażka = 0', () {
-      final won = CaseProgress(
-        attempts: [_a([false, false, false]), _a([false, false, false]), _a([true, true, true])],
-        hints: {'e1', 'e2', 'e3', 'e4', 'e5', 'e6'},
-        won: true,
-        done: true,
-      );
-      expect(score(won), minScore);
-      expect(score(CaseProgress(done: true)), 0);
+    test('never below minimum, loss = 0', () {
+      expect(computeScore(won: true, attempts: 3, hints: 9), minScore);
+      expect(computeScore(won: false, attempts: 3, hints: 0), 0);
     });
   });
 
@@ -76,13 +56,19 @@ void main() {
     expect(formatClock(const Duration(seconds: -4)), '00:00:00');
   });
 
-  test('tekst do udostępnienia nie zdradza rozwiązania', () {
-    final p = CaseProgress(
-      attempts: [_a([true, false, true]), _a([true, true, true])],
+  test('share text does not reveal the solution', () {
+    final text = buildShareText(
+      title: 'Lep na muchy',
+      day: 3,
+      rows: const [
+        [true, false, true],
+        [true, true, true],
+      ],
+      hints: 0,
       won: true,
-      done: true,
+      score: 80,
+      streak: 4,
     );
-    final text = buildShareText(title: 'Lep na muchy', isDaily: true, day: 3, progress: p, streak: 4);
     expect(text, 'Sprawa Dnia #3 · Lep na muchy\n🟩🟥🟩\n🟩🟩🟩\nEkspertyzy: 0 · 80 pkt · seria 4');
   });
 }

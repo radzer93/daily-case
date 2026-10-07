@@ -4,7 +4,6 @@ import '../theme.dart';
 
 class PrimaryButton extends StatelessWidget {
   const PrimaryButton({super.key, required this.label, required this.onPressed});
-
   final String label;
   final VoidCallback? onPressed;
 

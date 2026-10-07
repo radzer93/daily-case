@@ -1,189 +1,166 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../data/case_repository.dart';
+import '../data/game_backend.dart';
 import '../logic/rules.dart';
 import '../models/case_file.dart';
 import '../models/progress.dart';
 
-/// Cały stan gry: która sprawa jest otwarta, postęp, statystyki.
-/// Zapisywany lokalnie w SharedPreferences.
+enum LoadState { loading, ready, noCase, error }
+
 class GameController extends ChangeNotifier {
-  GameController._(this.cases, this._prefs, this._clock);
+  GameController({
+    required this.backend,
+    required SharedPreferences prefs,
+    DateTime Function()? clock,
+  })  : _prefs = prefs,
+        _clock = clock ?? DateTime.now;
 
-  static const storageKey = 'daily-case:v1';
-
-  final List<CaseFile> cases;
+  final GameBackend backend;
   final SharedPreferences _prefs;
   final DateTime Function() _clock;
 
-  late int today;
-  late int dailyIndex;
-  int currentIndex = 0;
-  bool isDaily = true;
+  LoadState state = LoadState.loading;
+  String? errorMessage;
+  Stats stats = const Stats();
 
-  final Map<String, CaseProgress> _progress = {};
-  Stats stats = Stats();
+  bool busy = false;
 
-  static Future<GameController> create({
-    required CaseRepository repository,
-    required SharedPreferences prefs,
-    DateTime Function()? clock,
-  }) async {
-    final cases = await repository.loadCases();
-    if (cases.isEmpty) {
-      throw StateError('Brak spraw w repozytorium.');
-    }
-    final c = GameController._(cases, prefs, clock ?? DateTime.now);
-    c._restore();
-    c._computeDay();
-    c.currentIndex = c.dailyIndex;
-    return c;
-  }
+  CaseView? _daily;
+  CaseView? _archived;
+  DateTime? _closesAt;
 
-  // ---------- odczyt ----------
+  bool get isDaily => _archived == null;
 
-  CaseFile get current => cases[currentIndex];
+  bool get hasCase => _archived != null || (state == LoadState.ready && _daily != null);
 
-  /// Klucz postępu: sprawa dnia jest przypisana do numeru dnia,
-  /// sprawa z archiwum do swojego id.
-  String get progressKey => isDaily ? 'd$today' : 'a-${current.id}';
+  CaseView get _view => _archived ?? _daily!;
+  CaseFile get current => _view.caseFile;
+  CaseProgress get progress => _view.progress;
 
-  CaseProgress get progress =>
-      _progress.putIfAbsent(progressKey, () => CaseProgress());
+  String get viewKey => hasCase ? current.id : state.name;
 
-  CaseProgress? archiveProgress(CaseFile c) => _progress['a-${c.id}'];
+  DateTime? get closesAt => _closesAt;
 
-  int get streakNow => stats.lastWin >= today - 1 ? stats.streak : 0;
+  bool isEvidenceVisible(Evidence e) => !e.hint || progress.hintTexts.containsKey(e.id);
 
-  bool isEvidenceVisible(Evidence e) =>
-      !e.hint || progress.hints.contains(e.id) || progress.done;
+  String? evidenceText(Evidence e) => e.text ?? progress.hintTexts[e.id];
 
-  int get visibleEvidenceCount =>
-      current.evidence.where(isEvidenceVisible).length;
+  int get visibleEvidenceCount => current.evidence.where(isEvidenceVisible).length;
+
+  bool get canShare => isDaily && progress.attempts.isNotEmpty && progress.done;
 
   String get shareText => buildShareText(
         title: current.title,
-        isDaily: isDaily,
-        day: today,
-        progress: progress,
-        streak: streakNow,
+        day: current.dayNumber ?? 0,
+        rows: [for (final a in progress.attempts) a.result],
+        hints: progress.unlocked.length,
+        won: progress.won,
+        score: progress.score,
+        streak: stats.streak,
       );
 
-  // ---------- akcje ----------
+  String get _excludedKey => 'daily-case:excluded:${current.id}';
 
-  void openDaily() {
-    isDaily = true;
-    currentIndex = dailyIndex;
-    notifyListeners();
-  }
+  Set<String> get excluded => (_prefs.getStringList(_excludedKey) ?? const <String>[]).toSet();
 
-  void openArchive(int index) {
-    isDaily = false;
-    currentIndex = index;
-    notifyListeners();
-  }
-
-  /// Sprawdza, czy zmienił się dzień (np. po powrocie aplikacji z tła).
-  bool refreshDay() {
-    final d = dayNumber(_clock());
-    if (d == today) return false;
-    _computeDay();
-    if (isDaily) currentIndex = dailyIndex;
-    notifyListeners();
-    return true;
-  }
-
-  void unlockHint(String evidenceId) {
-    final p = progress;
-    if (p.done || p.hints.contains(evidenceId)) return;
-    p.hints.add(evidenceId);
-    _save();
-    notifyListeners();
-  }
+  bool isExcluded(String suspectId) => excluded.contains(suspectId);
 
   void toggleExcluded(String suspectId) {
-    final p = progress;
-    if (!p.excluded.remove(suspectId)) p.excluded.add(suspectId);
-    _save();
+    final set = excluded;
+    if (!set.remove(suspectId)) set.add(suspectId);
+    unawaited(_prefs.setStringList(_excludedKey, set.toList()));
     notifyListeners();
   }
 
-  Attempt accuse({
+  Future<void> load() async {
+    state = LoadState.loading;
+    errorMessage = null;
+    notifyListeners();
+    try {
+      final t = await backend.today();
+      _closesAt = t.closesAt;
+      _daily = t.caseFile == null ? null : CaseView(t.caseFile!, t.progress);
+      _archived = null;
+      stats = await backend.stats();
+      state = _daily == null ? LoadState.noCase : LoadState.ready;
+    } on BackendException catch (e) {
+      errorMessage = e.message;
+      state = LoadState.error;
+    } catch (e) {
+      errorMessage = 'Coś poszło nie tak. Spróbuj ponownie.';
+      debugPrint('GameController.load: $e');
+      state = LoadState.error;
+    }
+    notifyListeners();
+  }
+
+  DateTime? _lastDayRefresh;
+
+  Future<void> refreshIfDayChanged() async {
+    final c = _closesAt;
+    final now = _clock();
+    if (c == null || now.isBefore(c) || state == LoadState.loading) return;
+    final last = _lastDayRefresh;
+    if (last != null && now.difference(last) < const Duration(seconds: 30)) return;
+    _lastDayRefresh = now;
+    await load();
+  }
+
+  Future<String?> accuse({
     required String culprit,
     required String motive,
     required String evidence,
-  }) {
-    final p = progress;
-    if (p.done) throw StateError('Sprawa jest już zamknięta.');
-    final sol = current.solution;
-    final attempt = Attempt(
-      culprit: culprit,
-      motive: motive,
-      evidence: evidence,
-      result: [
-        culprit == sol.culprit,
-        motive == sol.motive,
-        sol.evidence.contains(evidence),
-      ],
-    );
-    p.attempts.add(attempt);
+  }) =>
+      _mutate(
+        () => backend.accuse(current.id, culprit: culprit, motive: motive, evidence: evidence),
+        refreshStats: true,
+      );
 
-    if (attempt.correct || p.attempts.length >= maxAttempts) {
-      p.done = true;
-      p.won = attempt.correct;
-      if (isDaily) _recordDailyResult(attempt.correct);
-    }
-    _save();
+  Future<String?> unlockHint(String evidenceId) =>
+      _mutate(() => backend.unlockHint(current.id, evidenceId));
+
+  Future<String?> _mutate(Future<CaseProgress> Function() call, {bool refreshStats = false}) async {
+    if (busy || !isDaily || _daily == null) return null;
+    busy = true;
     notifyListeners();
-    return attempt;
-  }
-
-  // ---------- wewnętrzne ----------
-
-  void _computeDay() {
-    today = dayNumber(_clock());
-    dailyIndex = dailyCaseIndex(today, cases.length);
-  }
-
-  void _recordDailyResult(bool won) {
-    stats.played++;
-    if (won) {
-      stats.won++;
-      stats.streak = stats.lastWin == today - 1 ? stats.streak + 1 : 1;
-      stats.lastWin = today;
-      if (stats.streak > stats.best) stats.best = stats.streak;
-    } else {
-      stats.streak = 0;
-    }
-  }
-
-  void _restore() {
-    final raw = _prefs.getString(storageKey);
-    if (raw == null) return;
     try {
-      final j = jsonDecode(raw) as Map<String, dynamic>;
-      final cs = (j['cases'] as Map?) ?? const {};
-      cs.forEach((k, v) {
-        _progress[k as String] =
-            CaseProgress.fromJson(Map<String, dynamic>.from(v as Map));
-      });
-      if (j['stats'] is Map) {
-        stats = Stats.fromJson(Map<String, dynamic>.from(j['stats'] as Map));
+      final p = await call();
+      _daily = CaseView(_daily!.caseFile, p);
+      if (refreshStats && p.done) {
+        stats = await backend.stats().catchError((_) => stats);
       }
+      return null;
+    } on BackendException catch (e) {
+      return e.message;
     } catch (e) {
-      debugPrint('Nie udało się odczytać zapisu gry: $e');
+      debugPrint('GameController._mutate: $e');
+      return 'Coś poszło nie tak. Spróbuj ponownie.';
+    } finally {
+      busy = false;
+      notifyListeners();
     }
   }
 
-  void _save() {
-    final data = {
-      'cases': _progress.map((k, v) => MapEntry(k, v.toJson())),
-      'stats': stats.toJson(),
-    };
-    unawaited(_prefs.setString(storageKey, jsonEncode(data)));
+  Future<List<ArchiveEntry>> archive() => backend.archive();
+
+  Future<String?> openArchive(String ref) async {
+    try {
+      _archived = await backend.caseById(ref);
+      notifyListeners();
+      return null;
+    } on BackendException catch (e) {
+      return e.message;
+    } catch (_) {
+      return 'Nie udało się otworzyć sprawy.';
+    }
+  }
+
+  void openDaily() {
+    if (_archived == null) return;
+    _archived = null;
+    notifyListeners();
   }
 }

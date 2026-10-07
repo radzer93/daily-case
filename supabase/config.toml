@@ -1,0 +1,10 @@
+project_id = "daily-case"
+
+[api]
+schemas = ["public", "graphql_public"]
+
+[auth]
+enable_anonymous_sign_ins = true
+
+[functions.generate-case]
+verify_jwt = false

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Paleta: chłodne szarości akt, żółta taśma i metki dowodowe, czerwona pieczęć.
 @immutable
 class AppColors extends ThemeExtension<AppColors> {
   const AppColors({
@@ -109,11 +108,6 @@ class AppColors extends ThemeExtension<AppColors> {
 extension AppColorsX on BuildContext {
   AppColors get colors => Theme.of(this).extension<AppColors>()!;
 }
-
-// ---------- typografia ----------
-// Display: wąski, urzędowy krój do tytułów spraw.
-// Body: szeryfowy krój do akt i zeznań.
-// Mono: sygnatury, metki dowodów, etykiety.
 
 TextStyle _font(String family, TextStyle style, String fallback) {
   try {

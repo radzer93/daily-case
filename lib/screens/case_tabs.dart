@@ -11,9 +11,14 @@ import '../widgets/verdict_view.dart';
 
 const _pagePadding = EdgeInsets.fromLTRB(16, 20, 16, 48);
 
+void _showError(BuildContext context, String message) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(message)));
+}
+
 class BriefTab extends StatelessWidget {
   const BriefTab({super.key, required this.caseFile, required this.onNext});
-
   final CaseFile caseFile;
   final VoidCallback onNext;
 
@@ -43,7 +48,8 @@ class BriefTab extends StatelessWidget {
               Text(
                 'Przeczytaj dowody i zeznania. Wskaż sprawcę, motyw i dowód, który go pogrąża. '
                 'Masz $maxAttempts próby, po każdej zobaczysz, co trafiłeś. '
-                'Ekspertyzy odsłaniają dodatkowe dowody, ale kosztują punkty.',
+                'Ekspertyzy odsłaniają dodatkowe dowody, ale kosztują punkty. '
+                'Sprawa przepada o północy, a rozwiązanie odtajniamy następnego dnia.',
                 style: bodyStyle(size: 15, color: c.muted),
               ),
             ],
@@ -58,13 +64,13 @@ class BriefTab extends StatelessWidget {
 
 class EvidenceTab extends StatelessWidget {
   const EvidenceTab({super.key, required this.controller, required this.onNext});
-
   final GameController controller;
   final VoidCallback onNext;
 
   @override
   Widget build(BuildContext context) {
     final cf = controller.current;
+    final canUnlock = controller.isDaily && !controller.progress.done && !controller.busy;
     return ListView(
       padding: _pagePadding,
       children: [
@@ -72,12 +78,16 @@ class EvidenceTab extends StatelessWidget {
           EvidenceCard(
             number: i + 1,
             evidence: cf.evidence[i],
-            sygn: cf.sygn,
+            text: controller.evidenceText(cf.evidence[i]),
+            docket: cf.docket,
             visible: controller.isEvidenceVisible(cf.evidence[i]),
-            onUnlock: () {
-              HapticFeedback.selectionClick();
-              controller.unlockHint(cf.evidence[i].id);
-            },
+            onUnlock: canUnlock
+                ? () async {
+                    HapticFeedback.selectionClick();
+                    final err = await controller.unlockHint(cf.evidence[i].id);
+                    if (err != null && context.mounted) _showError(context, err);
+                  }
+                : null,
           ),
           const SizedBox(height: 14),
         ],
@@ -90,7 +100,6 @@ class EvidenceTab extends StatelessWidget {
 
 class SuspectsTab extends StatelessWidget {
   const SuspectsTab({super.key, required this.controller, required this.onNext});
-
   final GameController controller;
   final VoidCallback onNext;
 
@@ -98,6 +107,7 @@ class SuspectsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final cf = controller.current;
     final p = controller.progress;
+    final excluded = controller.excluded;
     return ListView(
       padding: _pagePadding,
       children: [
@@ -106,7 +116,7 @@ class SuspectsTab extends StatelessWidget {
             index: i + 1,
             total: cf.suspects.length,
             suspect: cf.suspects[i],
-            excluded: p.excluded.contains(cf.suspects[i].id),
+            excluded: excluded.contains(cf.suspects[i].id),
             onToggle: () => controller.toggleExcluded(cf.suspects[i].id),
           ),
           const SizedBox(height: 14),
@@ -115,7 +125,11 @@ class SuspectsTab extends StatelessWidget {
         Align(
           alignment: Alignment.centerLeft,
           child: PrimaryButton(
-            label: p.done ? 'Zobacz werdykt' : 'Wnieś oskarżenie',
+            label: !controller.isDaily
+                ? 'Zobacz rozwiązanie'
+                : p.done
+                    ? 'Zobacz werdykt'
+                    : 'Wnieś oskarżenie',
             onPressed: onNext,
           ),
         ),
@@ -126,16 +140,13 @@ class SuspectsTab extends StatelessWidget {
 
 class AccusationTab extends StatefulWidget {
   const AccusationTab({super.key, required this.controller});
-
   final GameController controller;
 
   @override
   State<AccusationTab> createState() => _AccusationTabState();
 }
 
-class _AccusationTabState extends State<AccusationTab>
-    with AutomaticKeepAliveClientMixin {
-  // Wybory gracza przetrwają przełączenie zakładki.
+class _AccusationTabState extends State<AccusationTab> with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
@@ -146,18 +157,26 @@ class _AccusationTabState extends State<AccusationTab>
 
   GameController get c => widget.controller;
 
-  void _submit(String? culprit) {
+  Future<void> _submit(String? culprit) async {
     if (culprit == null || _motive == null || _evidence == null) {
       setState(() => _error = 'Wskaż sprawcę, motyw i dowód.');
       return;
     }
-    final attempt = c.accuse(culprit: culprit, motive: _motive!, evidence: _evidence!);
-    if (attempt.correct) {
-      HapticFeedback.heavyImpact();
-    } else {
-      HapticFeedback.mediumImpact();
-    }
     setState(() => _error = null);
+    final before = c.progress.attempts.length;
+    final err = await c.accuse(culprit: culprit, motive: _motive!, evidence: _evidence!);
+    if (!mounted) return;
+    if (err != null) {
+      setState(() => _error = err);
+      return;
+    }
+    if (c.progress.attempts.length > before) {
+      if (c.progress.won) {
+        HapticFeedback.heavyImpact();
+      } else {
+        HapticFeedback.mediumImpact();
+      }
+    }
   }
 
   @override
@@ -174,16 +193,17 @@ class _AccusationTabState extends State<AccusationTab>
         ..add(const SizedBox(height: 8));
     }
 
-    if (p.done) {
+    if (p.done || !c.isDaily) {
       children
         ..add(const SizedBox(height: 8))
         ..add(VerdictView(controller: c));
       return ListView(padding: _pagePadding, children: children);
     }
 
-    // Wykluczony podejrzany znika z listy, więc nie może zostać wybrany.
-    final culprit = (_culprit != null && !p.excluded.contains(_culprit)) ? _culprit : null;
-    final left = attemptsLeft(p);
+    final excluded = c.excluded;
+    final culprit = (_culprit != null && !excluded.contains(_culprit)) ? _culprit : null;
+    final evidence = cf.evidence.any((e) => e.id == _evidence && c.isEvidenceVisible(e)) ? _evidence : null;
+    final left = p.attemptsLeft;
 
     if (p.attempts.isNotEmpty) children.add(const SizedBox(height: 14));
     children.addAll([
@@ -191,7 +211,7 @@ class _AccusationTabState extends State<AccusationTab>
         label: 'Sprawca',
         options: [
           for (final s in cf.suspects)
-            if (!p.excluded.contains(s.id)) (s.id, s.name),
+            if (!excluded.contains(s.id)) (s.id, s.name),
         ],
         selected: culprit,
         onSelect: (v) => setState(() => _culprit = v),
@@ -208,7 +228,7 @@ class _AccusationTabState extends State<AccusationTab>
           for (final e in cf.evidence)
             if (c.isEvidenceVisible(e)) (e.id, e.title),
         ],
-        selected: _evidence,
+        selected: evidence,
         onSelect: (v) => setState(() => _evidence = v),
       ),
       if (_error != null)
@@ -221,9 +241,12 @@ class _AccusationTabState extends State<AccusationTab>
         spacing: 14,
         runSpacing: 10,
         children: [
-          PrimaryButton(label: 'Złóż akt oskarżenia', onPressed: () => _submit(culprit)),
+          PrimaryButton(
+            label: c.busy ? 'Wysyłanie…' : 'Złóż akt oskarżenia',
+            onPressed: c.busy ? null : () => _submit(culprit),
+          ),
           Text(
-            '$left ${plural(left, 'próba', 'próby', 'prób')} · ekspertyzy: ${p.hints.length}',
+            '$left ${plural(left, 'próba', 'próby', 'prób')} · ekspertyzy: ${p.unlocked.length}',
             style: monoStyle(size: 11.5, weight: FontWeight.w500, color: colors.muted, letterSpacing: 0.3),
           ),
         ],
@@ -273,7 +296,6 @@ class _Group extends StatelessWidget {
 
 class _Choice extends StatelessWidget {
   const _Choice({required this.label, required this.selected, required this.onTap});
-
   final String label;
   final bool selected;
   final VoidCallback onTap;
