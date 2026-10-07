@@ -2,8 +2,8 @@
   {
     "id": "antykwariat",
     "title": "Zamknięty antykwariat",
-    "kind": "fikcyjna",
-    "sygn": "RSD 114/25",
+    "kind": "fictional",
+    "docket": "RSD 114/25",
     "place": "Toruń",
     "date": "3 marca 2025",
     "brief": [
@@ -112,9 +112,9 @@
   {
     "id": "lep",
     "title": "Lep na muchy",
-    "kind": "inspirowana",
+    "kind": "inspired",
     "note": "Motyw zaczerpnięty ze sprawy Florence Maybrick (Liverpool, 1889). Osoby, miejsce i rozwiązanie zmienione.",
-    "sygn": "Vr 214/03",
+    "docket": "Vr 214/03",
     "place": "Kraków",
     "date": "11 maja 1903",
     "brief": [
@@ -223,8 +223,8 @@
   {
     "id": "albatros",
     "title": "Dryfujący Albatros",
-    "kind": "fikcyjna",
-    "sygn": "RSD 902/25",
+    "kind": "fictional",
+    "docket": "RSD 902/25",
     "place": "Giżycko",
     "date": "16 sierpnia 2025",
     "brief": [
@@ -332,8 +332,8 @@
   {
     "id": "kruk",
     "title": "Nacięty przewód",
-    "kind": "fikcyjna",
-    "sygn": "RSD 377/25",
+    "kind": "fictional",
+    "docket": "RSD 377/25",
     "place": "Ustrzyki Dolne",
     "date": "8 czerwca 2025",
     "brief": [
@@ -441,9 +441,9 @@
   {
     "id": "hoza",
     "title": "Piwnica przy Hożej",
-    "kind": "inspirowana",
+    "kind": "inspired",
     "note": "Motyw zaczerpnięty ze sprawy dr. Hawleya Crippena (Londyn, 1910). Osoby, miejsce i szczegóły zmienione.",
-    "sygn": "II K 1287/35",
+    "docket": "II K 1287/35",
     "place": "Warszawa",
     "date": "13 lipca 1935",
     "brief": [
