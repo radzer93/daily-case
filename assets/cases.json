@@ -1,0 +1,551 @@
+[
+  {
+    "id": "antykwariat",
+    "title": "Zamknięty antykwariat",
+    "kind": "fikcyjna",
+    "sygn": "RSD 114/25",
+    "place": "Toruń",
+    "date": "3 marca 2025",
+    "brief": [
+      "W poniedziałek o 8:10 Paweł Rudnik, asystent antykwariatu „Pod Wagą” przy ul. Szerokiej w Toruniu, zgłosił śmierć właściciela. Edward Malicki (67 l.) leżał na zapleczu z raną tłuczoną głowy. Sejf był otwarty.",
+      "Zniknęła kolekcja dziewiętnastowiecznych zegarków kieszonkowych, wyceniona przez ubezpieczyciela na 180 tys. zł. Malicki mieszkał sam, w mieszkaniu nad sklepem. W niedzielę antykwariat był zamknięty dla klientów."
+    ],
+    "suspects": [
+      {
+        "id": "kinga",
+        "name": "Kinga Malicka",
+        "age": 34,
+        "role": "bratanica, jedyna spadkobierczyni",
+        "statement": [
+          "Wujek dzwonił do mnie w niedzielę wieczorem, chyba przed ósmą. Pytał, czy przyjadę na jego urodziny. O dwudziestej byłam już w kinie w Bydgoszczy, seans trwał do 22:10. Bilet mam w telefonie.",
+          "Wiem, jak to wygląda. Dziedziczę wszystko. Ale ja nawet nie mam kluczy do sklepu."
+        ]
+      },
+      {
+        "id": "pawel",
+        "name": "Paweł Rudnik",
+        "age": 29,
+        "role": "asystent w antykwariacie od sześciu lat",
+        "statement": [
+          "W niedzielę w ogóle nie byłem na Starówce. Siedziałem w domu i grałem na konsoli, sam.",
+          "Rano przyszedłem jak zwykle. Drzwi były zamknięte na klucz, otworzyłem swoim. Klucze mamy tylko my dwaj, pan Edward był na tym punkcie przewrażliwiony. Ktoś musiał wejść przez okno albo pan Edward sam kogoś wpuścił."
+        ]
+      },
+      {
+        "id": "igor",
+        "name": "Igor Sawa",
+        "age": 52,
+        "role": "kolekcjoner z Gdańska",
+        "statement": [
+          "Tak, kłóciliśmy się w zeszłym miesiącu o Patka Philippe, którego mi sprzedał. Twierdziłem, że ma wymieniony mechanizm.",
+          "Ale w niedzielę o wpół do dziesiątej rozmawialiśmy już spokojnie przez telefon. Umówiliśmy się na poniedziałek, miał mi oddać część pieniędzy. Dzwoniłem z domu, z Gdańska. Potem poszedłem spać."
+        ]
+      }
+    ],
+    "evidence": [
+      {
+        "id": "e1",
+        "title": "Protokół oględzin",
+        "text": "Drzwi wejściowe zamknięte na zamek wpuszczany. Okna zamknięte od wewnątrz, bez śladów podważenia. Klucz ofiary w kieszeni marynarki. Sejf otwarty kluczem, nie siłą. Klucz do sejfu ofiara trzymała w szufladzie biurka na zapleczu."
+      },
+      {
+        "id": "e2",
+        "title": "Opinia medyka sądowego",
+        "text": "Zgon w niedzielę między 21:00 a 23:00. Jedno uderzenie ciężkim, tępym narzędziem w tył głowy. Brak śladów obrony."
+      },
+      {
+        "id": "e3",
+        "title": "Billing telefonu stacjonarnego antykwariatu",
+        "text": "Niedziela, 19:52: połączenie wychodzące do Kingi Malickiej (3 min 40 s). 21:31: połączenie przychodzące z numeru stacjonarnego Igora Sawy w Gdańsku (6 min 12 s)."
+      },
+      {
+        "id": "e4",
+        "title": "Zeznanie ślusarza",
+        "text": "Zamek wymieniałem w 2019 roku. Pan Malicki zamówił dwa klucze: jeden dla siebie, drugi dla pracownika. To system z kartą kodową, bez karty nikt nie dorobi kopii."
+      },
+      {
+        "id": "e5",
+        "title": "Monitoring miejski, ul. Szeroka",
+        "hint": true,
+        "text": "22:47. Mężczyzna w kapturze, z plecakiem, wychodzi z bramy antykwariatu i zamyka drzwi kluczem. Twarzy nie widać."
+      },
+      {
+        "id": "e6",
+        "title": "Sytuacja finansowa asystenta",
+        "hint": true,
+        "text": "W piątek bank odrzucił wniosek Pawła Rudnika o pożyczkę 40 000 zł. W aplikacji bukmacherskiej saldo przegranych z ostatniego roku: 41 300 zł."
+      }
+    ],
+    "motives": [
+      {
+        "id": "spadek",
+        "label": "Spadek po wuju"
+      },
+      {
+        "id": "dlugi",
+        "label": "Długi hazardowe"
+      },
+      {
+        "id": "patek",
+        "label": "Spór o podrobiony zegarek"
+      },
+      {
+        "id": "zwolnienie",
+        "label": "Zemsta za zwolnienie z pracy"
+      }
+    ],
+    "solution": {
+      "culprit": "pawel",
+      "motive": "dlugi",
+      "evidence": [
+        "e1",
+        "e4",
+        "e5"
+      ],
+      "explain": [
+        "Drzwi były zamknięte na klucz, a klucz ofiary leżał w jej kieszeni. Okna były nienaruszone. Ktokolwiek wyszedł z antykwariatu po zabójstwie, zamknął drzwi drugim kluczem.",
+        "Ślusarz potwierdza, że istniały tylko dwa klucze i bez karty kodowej nie da się dorobić kopii. Drugi klucz miał Paweł Rudnik. Jego wersja o oknie albo wpuszczonym gościu nie trzyma się protokołu oględzin.",
+        "Kinga ma bilet do kina i nie ma klucza. Igor Sawa o 21:31 dzwonił ze swojego stacjonarnego telefonu w Gdańsku, a nawet gdyby zdążył dojechać, nie zamknąłby drzwi. Rudnik tonął w długach u bukmachera, a bank w piątek odmówił mu pożyczki."
+      ]
+    }
+  },
+  {
+    "id": "lep",
+    "title": "Lep na muchy",
+    "kind": "inspirowana",
+    "note": "Motyw zaczerpnięty ze sprawy Florence Maybrick (Liverpool, 1889). Osoby, miejsce i rozwiązanie zmienione.",
+    "sygn": "Vr 214/03",
+    "place": "Kraków",
+    "date": "11 maja 1903",
+    "brief": [
+      "W kamienicy przy ul. Basztowej w Krakowie zmarł Juliusz Brandt (50 l.), wspólnik hurtowni bawełny „Brandt i Brat”. Od tygodnia cierpiał na wymioty i bóle brzucha. Lekarz domowy rozpoznał nieżyt żołądka.",
+      "Służąca zawiadomiła brata zmarłego, że pani domu moczy w misce lepy na muchy. Lepy z drogerii zawierały arszenik. Analiza zarządzona przez sędziego śledczego wykazała arszenik w organach zmarłego."
+    ],
+    "suspects": [
+      {
+        "id": "florentyna",
+        "name": "Florentyna Brandt",
+        "age": 26,
+        "role": "żona zmarłego",
+        "statement": [
+          "Lepy moczyłam, owszem. Woda z nich bieli cerę, tak robią wszystkie panie w Wiedniu, każda drogeria to powie.",
+          "Nigdy nie dałam mężowi do picia niczego poza tym, co przyniósł doktor albo jego brat. Wiem, co mówią o mnie i o panu Rajskim. Nie zaprzeczam, że do niego pisałam. Ale to nie czyni mnie trucicielką."
+        ]
+      },
+      {
+        "id": "michal",
+        "name": "Michał Brandt",
+        "age": 47,
+        "role": "brat i wspólnik zmarłego",
+        "statement": [
+          "Brat był hipochondrykiem. Od lat łykał krople Fowlera na wzmocnienie, sam mi się chwalił.",
+          "W ostatnią sobotę przyniosłem mu butelkę bulionu wzmacniającego, zapieczętowaną, prosto ze sklepu. Postawiłem na stoliku i wyszedłem. To Florentyna siedziała przy nim dniami i nocami. Bratowej nie ufałem nigdy."
+        ]
+      },
+      {
+        "id": "lis",
+        "name": "dr Hubert Lis",
+        "age": 58,
+        "role": "lekarz domowy rodziny",
+        "statement": [
+          "Pacjent przyjmował arszenik w kroplach Fowlera z własnej woli, w dawkach, które tolerował. Objawy zrzuciłem na nieżyt, zaleciłem dietę i bulion. Przyznaję, mogłem przeoczyć zatrucie.",
+          "Ale nie miałem żadnego powodu, by mu szkodzić. Brandt płacił mi stałą pensję."
+        ]
+      }
+    ],
+    "evidence": [
+      {
+        "id": "e1",
+        "title": "Ekspertyza Zakładu Chemii Lekarskiej UJ",
+        "text": "W butelce bulionu: około 0,5 grama arszeniku w postaci białego proszku, bez włókien papieru i kleju. W misce z pokoju pani Brandt: słaby roztwór arszeniku z włóknami papieru i resztkami kleju, typowy dla moczonego lepu."
+      },
+      {
+        "id": "e2",
+        "title": "Zeznanie służącej Marii Kuś",
+        "text": "W sobotę pan Michał przyniósł bulion i poprosił, żebym poszła po świeże ręczniki. Kiedy wróciłam, butelka stała już otwarta. Pani Florentyna była wtedy na nieszporach u Mariackich, wróciła dopiero o siódmej."
+      },
+      {
+        "id": "e3",
+        "title": "Księga trucizn apteki „Pod Złotym Tygrysem”",
+        "text": "2 maja 1903: Michał Brandt, ul. Floriańska. 30 gramów arszeniku białego. Cel: „na szczury w magazynie”. Podpis odbiorcy."
+      },
+      {
+        "id": "e4",
+        "title": "Opinia o kroplach Fowlera",
+        "text": "Krople zawierają około 1% arszeniku. W dawkach, które przyjmował zmarły (5 kropli dziennie), nie mogły wywołać tak ostrego zatrucia."
+      },
+      {
+        "id": "e5",
+        "title": "Umowa spółki „Brandt i Brat” z 1895 r.",
+        "hint": true,
+        "text": "§ 9. W razie śmierci jednego ze wspólników jego udziały przechodzą na wspólnika żyjącego. Spadkobiercy otrzymują spłatę według wyceny z ostatniego bilansu."
+      },
+      {
+        "id": "e6",
+        "title": "Oględziny magazynu hurtowni",
+        "hint": true,
+        "text": "Śladów szczurów nie stwierdzono. Magazynier od lat używa kotów i pułapek. Nikt w hurtowni nie widział trutki."
+      }
+    ],
+    "motives": [
+      {
+        "id": "romans",
+        "label": "Romans i chęć uwolnienia się od męża"
+      },
+      {
+        "id": "spolka",
+        "label": "Przejęcie udziałów w spółce"
+      },
+      {
+        "id": "blad",
+        "label": "Błąd w leczeniu i jego ukrycie"
+      },
+      {
+        "id": "spadek",
+        "label": "Spadek po mężu"
+      }
+    ],
+    "solution": {
+      "culprit": "michal",
+      "motive": "spolka",
+      "evidence": [
+        "e1",
+        "e2",
+        "e3"
+      ],
+      "explain": [
+        "Arszenik w bulionie był czystym białym proszkiem. Gdyby pochodził z lepów Florentyny, zawierałby włókna papieru i klej, jak roztwór w jej misce. Lepy to fałszywy trop, choć bardzo wygodny dla kogoś, kto chciał obciążyć bratową.",
+        "Michał kupił 30 gramów białego arszeniku „na szczury”, których w magazynie nie było. Służąca widziała, że po jego wizycie butelka stała otwarta, a Florentyna była w tym czasie w kościele.",
+        "Zgodnie z umową spółki udziały Juliusza przechodziły na Michała. Krople Fowlera nie tłumaczą ostrego zatrucia, więc wersja o hipochondryku, który sam się otruł, upada."
+      ]
+    }
+  },
+  {
+    "id": "albatros",
+    "title": "Dryfujący Albatros",
+    "kind": "fikcyjna",
+    "sygn": "RSD 902/25",
+    "place": "Giżycko",
+    "date": "16 sierpnia 2025",
+    "brief": [
+      "Sobota, godz. 6:05. Rybak z Wilkas zgłasza dryfujący po Niegocinie jacht „Albatros II”. Na pokładzie nie ma nikogo. Silnik wyłączony, żagle zrzucone, kotwica w bakiście.",
+      "O 9:40 płetwonurkowie wyciągają z wody ciało armatora, Marka Zawady (45 l.), dewelopera z Olsztyna. W nocy z piątku na sobotę nad Mazurami przeszła burza. Wieczorem jacht cumował w porcie w Giżycku."
+    ],
+    "suspects": [
+      {
+        "id": "tomasz",
+        "name": "Tomasz Zawada",
+        "age": 22,
+        "role": "syn armatora",
+        "statement": [
+          "Pokłóciliśmy się wieczorem, nie będę udawał, słyszała to pewnie cała keja. Ojciec chciał, żebym rzucił studia muzyczne i szedł do jego firmy.",
+          "Koło dziesiątej zszedłem z jachtu i poszedłem do hotelu. Nie wiem, po co ojciec wypłynął w burzę. Był dobrym żeglarzem, ale uparty."
+        ]
+      },
+      {
+        "id": "olga",
+        "name": "Olga Bielska",
+        "age": 41,
+        "role": "wspólniczka w spółce deweloperskiej",
+        "statement": [
+          "Siedziałam w tawernie na końcu nabrzeża do północy, piłam grzańca i czekałam, aż przestanie lać. Koło wpół do dwunastej widziałam przez okno Marka na pokładzie, w czerwonym sztormiaku.",
+          "Pewnie potem wypłynął i przy zwrocie dostał bomem w głowę. Na Niegocinie w burzę to się zdarza."
+        ]
+      },
+      {
+        "id": "leszek",
+        "name": "Leszek Gil",
+        "age": 60,
+        "role": "bosman portu",
+        "statement": [
+          "Około pierwszej słyszałem, jak ktoś odpala silnik na „Albatrosie”. Lało, więc nie wychodziłem. Przez okno bosmanatu widziałem tylko jedną postać w sztormiaku przy sterze.",
+          "Pan Zawada nie płacił mi za postój od czerwca, ale to drobne sprawy. Ja nikomu krzywdy nie robię."
+        ]
+      }
+    ],
+    "evidence": [
+      {
+        "id": "e1",
+        "title": "Opinia biegłego medyka",
+        "text": "Zgon przez utonięcie między 23:30 a 1:30. Rana tłuczona potylicy powstała przed wpadnięciem do wody, ofiara mogła być nieprzytomna. Kształt rany pasuje zarówno do bomu, jak i do korby od kabestanu."
+      },
+      {
+        "id": "e2",
+        "title": "Notatka służbowa KPP Giżycko",
+        "text": "Informacji o urazie głowy nie przekazano mediom, rodzinie ani świadkom. Wszystkim przesłuchiwanym podano jedynie, że ciało wyłowiono z jeziora."
+      },
+      {
+        "id": "e3",
+        "title": "Zeznanie właściciela tawerny",
+        "text": "O 21:50 przez burzę wysiadł prąd w całym porcie. O 22:00 zamknąłem lokal i wyprosiłem ostatnich gości. Pani Bielskiej po tej godzinie na pewno nie było."
+      },
+      {
+        "id": "e4",
+        "title": "Monitoring hotelu „Mazury”",
+        "text": "Tomasz Zawada wchodzi do hotelu o 22:14. Do 7:30 nie opuszcza budynku. Kamera przy jedynym wyjściu działała na zasilaniu awaryjnym."
+      },
+      {
+        "id": "e5",
+        "title": "Ponton z „Albatrosa II”",
+        "hint": true,
+        "text": "Znaleziony w trzcinach przy brzegu w Wilkasach, około 400 metrów od miejsca dryfu jachtu. Ktoś dopłynął nim do lądu. Na wiosłach ślady rękawiczek."
+      },
+      {
+        "id": "e6",
+        "title": "Zeznanie księgowej spółki",
+        "hint": true,
+        "text": "W poniedziałek miał się zacząć audyt zlecony przez pana Zawadę. Z konta spółki zniknęło 1,2 mln zł na faktury firmy, której prezesem jest szwagier pani Bielskiej."
+      }
+    ],
+    "motives": [
+      {
+        "id": "spadek",
+        "label": "Spadek po ojcu"
+      },
+      {
+        "id": "audyt",
+        "label": "Ukrycie defraudacji przed audytem"
+      },
+      {
+        "id": "oplaty",
+        "label": "Zaległe opłaty portowe"
+      },
+      {
+        "id": "zazdrosc",
+        "label": "Zazdrość"
+      }
+    ],
+    "solution": {
+      "culprit": "olga",
+      "motive": "audyt",
+      "evidence": [
+        "e2",
+        "e3"
+      ],
+      "explain": [
+        "Olga Bielska wspomniała o uderzeniu w głowę, choć policja nikomu nie podała tej informacji. Taką wiedzę mógł mieć tylko ktoś, kto był przy zdarzeniu.",
+        "Jej alibi też się sypie. Tawerna była zamknięta od 22:00, więc Olga nie mogła siedzieć tam do północy i nikt nie widział Marka żywego o 23:30.",
+        "Postać przy sterze o pierwszej w nocy to ona: wyprowadziła jacht z nieprzytomnym Markiem, zepchnęła go za burtę i wróciła pontonem. Tomasza wyklucza monitoring hotelu. Bosman miał drobne pretensje, a Olga musiała zdążyć przed audytem."
+      ]
+    }
+  },
+  {
+    "id": "kruk",
+    "title": "Nacięty przewód",
+    "kind": "fikcyjna",
+    "sygn": "RSD 377/25",
+    "place": "Ustrzyki Dolne",
+    "date": "8 czerwca 2025",
+    "brief": [
+      "Trzeci dzień zlotu motocyklowego w Bieszczadach. O 11:15 na serpentynach Karol „Kruk” Nowicki (31 l.), zawodnik i youtuber, nie wyhamował przed zakrętem i wypadł z drogi. Przeżył ze złamaną miednicą i ręką. Jest w śpiączce farmakologicznej.",
+      "Biegły stwierdził, że przewód tylnego hamulca był nacięty. Ktoś chciał, żeby hamulec puścił dopiero po kilkunastu mocnych hamowaniach."
+    ],
+    "suspects": [
+      {
+        "id": "daniel",
+        "name": "Daniel Wrona",
+        "age": 29,
+        "role": "zawodnik, rywal Karola",
+        "statement": [
+          "Z Karolem się nie lubimy, to żadna tajemnica. Ale w niedzielę jechałem w innej grupie, przez Lutowiska. Na stację w Ustrzykach w ogóle nie zjeżdżałem, tankowałem jeszcze w sobotę.",
+          "Nie dotykałem jego motocykla."
+        ]
+      },
+      {
+        "id": "seweryn",
+        "name": "Seweryn Mazur",
+        "age": 45,
+        "role": "mechanik ekipy Karola",
+        "statement": [
+          "Serwisowałem motocykl w sobotę wieczorem. Hamulce były w porządku, wymieniłem nawet płyn.",
+          "W niedzielę zostałem w obozie i naprawiałem skuter organizatorów, pół zlotu mnie widziało. Mam ręce we wszystkim, w płynie hamulcowym też. To mój zawód."
+        ]
+      },
+      {
+        "id": "natalia",
+        "name": "Natalia Krok",
+        "age": 28,
+        "role": "była partnerka i montażystka Karola",
+        "statement": [
+          "Rozstaliśmy się w marcu. Karol nie zapłacił mi za pół roku montażu. Jestem tu, bo mam kontrakt ze sponsorem zlotu.",
+          "Jechałam w grupie Karola. Na postoju w Ustrzykach siedziałam w środku z dziewczynami przy kawie. Widziałam Daniela przy dystrybutorze, myślałam, że on też jedzie z nami."
+        ]
+      }
+    ],
+    "evidence": [
+      {
+        "id": "e1",
+        "title": "Ekspertyza motocykla",
+        "text": "Przewód tylnego hamulca nacięty na około 70% obwodu ostrym narzędziem, za osłoną wahacza. Przy takim nacięciu płyn wycieka stopniowo. Hamulec traci skuteczność po 15–30 minutach jazdy z częstym hamowaniem."
+      },
+      {
+        "id": "e2",
+        "title": "Nagranie z kamery na kasku Karola",
+        "text": "10:32: na zjeździe do stacji paliw w Ustrzykach Karol mocno hamuje tylnym hamulcem, motocykl zatrzymuje się normalnie. 10:58: wyjazd ze stacji. 11:14: tylny hamulec nie reaguje."
+      },
+      {
+        "id": "e3",
+        "title": "Transakcja kartą płatniczą",
+        "text": "Karta Daniela Wrony. Stacja paliw w Ustrzykach Dolnych, niedziela, 10:41. Paliwo 14,2 l."
+      },
+      {
+        "id": "e4",
+        "title": "Oświadczenie organizatorów",
+        "text": "Seweryn Mazur pracował w namiocie serwisowym w obozie od 9:00 do 13:00. Potwierdzają to cztery osoby."
+      },
+      {
+        "id": "e5",
+        "title": "Monitoring stacji paliw",
+        "hint": true,
+        "text": "Kamera nad dystrybutorami nie obejmuje parkingu za budynkiem, gdzie stały motocykle grupy Karola. 10:43: mężczyzna w kurtce z białymi pasami idzie w stronę parkingu i wraca po czterech minutach. Daniel Wrona ma taką kurtkę."
+      },
+      {
+        "id": "e6",
+        "title": "Mail od sponsora",
+        "hint": true,
+        "text": "Marka odzieży motocyklowej wybrała Karola Nowickiego zamiast Daniela Wrony na ambasadora sezonu 2026. Kontrakt: 240 tys. zł. Jeśli Karol nie może jeździć, kontrakt przechodzi na drugiego kandydata."
+      }
+    ],
+    "motives": [
+      {
+        "id": "kontrakt",
+        "label": "Kontrakt sponsorski"
+      },
+      {
+        "id": "pieniadze",
+        "label": "Niezapłacone wynagrodzenie"
+      },
+      {
+        "id": "zazdrosc",
+        "label": "Zazdrość o nową partnerkę"
+      },
+      {
+        "id": "ubezpieczenie",
+        "label": "Odszkodowanie z ubezpieczenia"
+      }
+    ],
+    "solution": {
+      "culprit": "daniel",
+      "motive": "kontrakt",
+      "evidence": [
+        "e3",
+        "e5"
+      ],
+      "explain": [
+        "Nagranie z kasku pokazuje, że o 10:32 hamulec działał. Nacięcie powstało więc podczas postoju na stacji w Ustrzykach, między 10:32 a 10:58.",
+        "Seweryn był w tym czasie w obozie, co potwierdzają cztery osoby. Daniel twierdzi, że na stację nie zjeżdżał, ale jego karta zapłaciła tam za paliwo o 10:41. Natalia też widziała go przy dystrybutorze.",
+        "Kłamstwo o obecności w jedynym miejscu i czasie, w którym dało się naciąć przewód, pogrąża Daniela. Kontrakt sponsorski za 240 tys. zł przechodził na niego, jeśli Karol nie mógł jeździć."
+      ]
+    }
+  },
+  {
+    "id": "hoza",
+    "title": "Piwnica przy Hożej",
+    "kind": "inspirowana",
+    "note": "Motyw zaczerpnięty ze sprawy dr. Hawleya Crippena (Londyn, 1910). Osoby, miejsce i szczegóły zmienione.",
+    "sygn": "II K 1287/35",
+    "place": "Warszawa",
+    "date": "13 lipca 1935",
+    "brief": [
+      "W piwnicy kamienicy przy ul. Hożej przodownik Policji Państwowej znajduje pod ceglaną posadzką szczątki ludzkie zasypane wapnem. Mieszkanie na parterze wynajmuje dentysta dr Henryk Halski z żoną, śpiewaczką operetkową Korą Halską. Kory nikt nie widział od 1 lutego.",
+      "Dwa dni wcześniej, po pierwszej wizycie policji, dr Halski i jego sekretarka Ewelina Lenart zniknęli z Warszawy. Zeznania pochodzą z przesłuchania 9 lipca."
+    ],
+    "suspects": [
+      {
+        "id": "henryk",
+        "name": "dr Henryk Halski",
+        "age": 48,
+        "role": "dentysta, mąż zaginionej",
+        "statement": [
+          "Żona odeszła ode mnie 1 lutego po kłótni. Wyjechała do Ameryki, do dawnego kochanka, tak twierdziła.",
+          "Znajomym mówiłem, że zmarła w Kalifornii na zapalenie płuc, bo wstydziłem się prawdy. To kłamstwo przyznaję. Ale żony nie skrzywdziłem."
+        ]
+      },
+      {
+        "id": "ewelina",
+        "name": "Ewelina Lenart",
+        "age": 27,
+        "role": "sekretarka dr. Halskiego",
+        "statement": [
+          "Henryk powiedział mi, że Kora wyjechała na zawsze. Dał mi jej broszkę i futro, mówił, że ich nie zabrała. Wprowadziłam się na Hożą w marcu.",
+          "W styczniu i w lutym mieszkałam przy Mokotowskiej. Gospodyni potwierdzi."
+        ]
+      },
+      {
+        "id": "bruno",
+        "name": "Bruno Szajer",
+        "age": 39,
+        "role": "brat Kory, akwizytor",
+        "statement": [
+          "Kora pożyczyła mi 800 złotych na interes, który nie wypalił. Ostatni raz widziałem ją 31 stycznia na kolacji u nich, z Henrykiem i dwojgiem znajomych z teatru.",
+          "Wyszedłem około pierwszej w nocy, odprowadzili mnie do dorożki. Rano pojechałem do Łodzi i siedziałem tam do marca."
+        ]
+      }
+    ],
+    "evidence": [
+      {
+        "id": "e1",
+        "title": "Raport Zakładu Medycyny Sądowej",
+        "text": "Szczątki kobiety w wieku 35–40 lat. W tkankach wykryto skopolaminę w ilości wielokrotnie przekraczającej dawkę leczniczą. Na skórze brzucha blizna pooperacyjna, zgodna z operacją, którą Kora Halska przeszła w 1929 r."
+      },
+      {
+        "id": "e2",
+        "title": "Księga trucizn apteki „Pod Opatrznością”",
+        "text": "19 stycznia 1935: dr H. Halski. 5 gran bromowodorku skopolaminy, „do praktyki dentystycznej”. Farmaceuta dopisał, że tak dużej ilości nikt wcześniej u nich nie zamawiał."
+      },
+      {
+        "id": "e3",
+        "title": "Zeznanie gospodyni z Mokotowskiej",
+        "text": "Panna Lenart mieszkała u mnie do 4 marca. 31 stycznia wróciła o dziesiątej wieczorem. Drzwi na noc zamykam sama, klucz jest tylko u mnie. Rano o siódmej przyniosłam jej mleko."
+      },
+      {
+        "id": "e4",
+        "title": "Zeznanie znajomych z teatru",
+        "text": "Kolacja 31 stycznia skończyła się około pierwszej. Bruno wyszedł razem z nami, odprowadziliśmy go do dorożki. Kora żegnała nas w drzwiach, była w dobrym humorze."
+      },
+      {
+        "id": "e5",
+        "title": "Fragment piżamy z piwnicy",
+        "hint": true,
+        "text": "W zasypisku znaleziono fragment męskiej piżamy z metką domu towarowego. Model w sprzedaży od 1934 r. W mieszkaniu Halskiego znaleziono rachunek za trzy takie piżamy z listopada 1934."
+      },
+      {
+        "id": "e6",
+        "title": "Radiotelegram z Atlantyku",
+        "hint": true,
+        "text": "22 lipca, kapitan statku pasażerskiego z Gdyni do Nowego Jorku: „Podejrzewam, że pasażerowie Henryk Robiński z synem to poszukiwani Halski i Lenart. Syn ma kobiece dłonie, a spodnie spięte agrafką”."
+      }
+    ],
+    "motives": [
+      {
+        "id": "romans",
+        "label": "Romans i nowe życie z kochanką"
+      },
+      {
+        "id": "pozyczka",
+        "label": "Niespłacona pożyczka"
+      },
+      {
+        "id": "zazdrosc",
+        "label": "Zazdrość o kochanka żony"
+      },
+      {
+        "id": "majatek",
+        "label": "Majątek żony"
+      }
+    ],
+    "solution": {
+      "culprit": "henryk",
+      "motive": "romans",
+      "evidence": [
+        "e2",
+        "e5"
+      ],
+      "explain": [
+        "Ofiarę otruto skopolaminą. Dwa tygodnie przed zniknięciem Kory dr Halski kupił jej ilość niespotykaną w praktyce dentystycznej.",
+        "Bruno wyszedł z kolacji razem ze świadkami, a Kora żegnała ich żywa. Ewelina spędziła noc za zamkniętymi drzwiami gospodyni i wprowadziła się dopiero w marcu.",
+        "Historia o kochanku w Ameryce była przykrywką. Halski sam przyznał, że kłamał o śmierci żony, a zaraz potem uciekł z Eweliną za ocean. Zabił, żeby ułożyć sobie z nią życie."
+      ]
+    }
+  }
+]
