@@ -113,6 +113,17 @@ class CaseHeader extends StatelessWidget {
                   style: monoStyle(size: 10, color: c.ink),
                 ),
               ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: c.ink,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: Text(
+                  'POZIOM: ${cf.difficulty.label.toUpperCase()}',
+                  style: monoStyle(size: 10, color: c.bg),
+                ),
+              ),
               if (cf.note != null)
                 Text(cf.note!, style: bodyStyle(size: 13, color: c.muted, height: 1.4)),
             ],
@@ -345,6 +356,97 @@ class _Cell extends StatelessWidget {
             const SizedBox(height: 2),
             Text(value, style: bodyStyle(size: 13, color: c.onSemantic, height: 1.25)),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class DifficultySwitcher extends StatelessWidget {
+  const DifficultySwitcher({
+    super.key,
+    required this.selected,
+    required this.levels,
+    required this.onSelect,
+    this.enabled = true,
+  });
+
+  final Difficulty selected;
+  final Map<Difficulty, LevelStatus> levels;
+  final ValueChanged<Difficulty> onSelect;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: Row(
+        children: [
+          for (final d in Difficulty.values) ...[
+            if (d != Difficulty.values.first) const SizedBox(width: 6),
+            Expanded(child: _LevelChip(
+              difficulty: d,
+              status: levels[d],
+              selected: d == selected,
+              onTap: enabled && d != selected ? () => onSelect(d) : null,
+              colors: c,
+            )),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _LevelChip extends StatelessWidget {
+  const _LevelChip({
+    required this.difficulty,
+    required this.status,
+    required this.selected,
+    required this.onTap,
+    required this.colors,
+  });
+
+  final Difficulty difficulty;
+  final LevelStatus? status;
+  final bool selected;
+  final VoidCallback? onTap;
+  final AppColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = colors;
+    final mark = status == null || !status!.available
+        ? ''
+        : status!.won
+            ? ' ✓'
+            : status!.done
+                ? ' ✗'
+                : '';
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(4),
+      side: BorderSide(color: selected ? c.ink : c.line, width: 1.5),
+    );
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: 'Poziom ${difficulty.label}${status?.won == true ? ', rozwiązana' : ''}',
+      excludeSemantics: true,
+      child: Material(
+        color: selected ? c.ink : c.surface,
+        shape: shape,
+        child: InkWell(
+          customBorder: shape,
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 9),
+            child: Text(
+              '${difficulty.label.toUpperCase()}$mark',
+              textAlign: TextAlign.center,
+              style: monoStyle(size: 11.5, color: selected ? c.bg : c.ink, letterSpacing: 1),
+            ),
+          ),
         ),
       ),
     );

@@ -8,6 +8,8 @@ import '../models/case_file.dart';
 import '../models/progress.dart';
 import 'game_backend.dart';
 
+typedef _Slot = ({int day, Difficulty difficulty});
+
 class LocalGameBackend implements GameBackend {
   LocalGameBackend({
     required Future<List<CaseFile>> Function() loadCases,
@@ -17,7 +19,7 @@ class LocalGameBackend implements GameBackend {
         _prefs = prefs,
         _clock = clock ?? DateTime.now;
 
-  static const storageKey = 'daily-case:local:v2';
+  static const storageKey = 'daily-case:local:v3';
   final Future<List<CaseFile>> Function() _loadCases;
   final SharedPreferences _prefs;
   final DateTime Function() _clock;
@@ -25,18 +27,22 @@ class LocalGameBackend implements GameBackend {
 
   int get _today => dayNumber(_clock());
 
-  static String refFor(int day) => 'local-$day';
+  static String refFor(int day, Difficulty difficulty) => 'local-$day-${difficulty.wire}';
 
-  int _dayOf(String ref) {
-    final d = int.tryParse(ref.replaceFirst('local-', ''));
-    if (d == null) throw const BackendException('Nie znaleziono sprawy.');
-    return d;
+  static String _storeKey(_Slot s) => '${s.day}:${s.difficulty.wire}';
+
+  _Slot _slotOf(String ref) {
+    final parts = ref.split('-');
+    final day = parts.length == 3 && parts[0] == 'local' ? int.tryParse(parts[1]) : null;
+    final difficulty = parts.length == 3 ? Difficulty.tryFromWire(parts[2]) : null;
+    if (day == null || difficulty == null) throw const BackendException('Nie znaleziono sprawy.');
+    return (day: day, difficulty: difficulty);
   }
 
-  Future<CaseFile> _full(int day) async {
+  Future<CaseFile> _full(_Slot s) async {
     final all = _cases ??= await _loadCases();
     if (all.isEmpty) throw const BackendException('Brak spraw w pliku.');
-    return all[dailyCaseIndex(day, all.length)];
+    return all[dailyCaseIndex(s.day + s.difficulty.index, all.length)];
   }
 
   Map<String, dynamic> _readStore() {
@@ -52,8 +58,8 @@ class LocalGameBackend implements GameBackend {
   void _writeStore(Map<String, dynamic> store) =>
       unawaited(_prefs.setString(storageKey, jsonEncode(store)));
 
-  ({List<Attempt> attempts, List<String> unlocked}) _dayState(int day) {
-    final d = _readStore()['$day'];
+  ({List<Attempt> attempts, List<String> unlocked}) _state(_Slot s) {
+    final d = _readStore()[_storeKey(s)];
     if (d is! Map) return (attempts: <Attempt>[], unlocked: <String>[]);
     return (
       attempts: (d['attempts'] as List? ?? const [])
@@ -63,20 +69,21 @@ class LocalGameBackend implements GameBackend {
     );
   }
 
-  void _saveDay(int day, List<Attempt> attempts, List<String> unlocked) {
+  void _save(_Slot s, List<Attempt> attempts, List<String> unlocked) {
     final store = _readStore();
-    store['$day'] = {
+    store[_storeKey(s)] = {
       'attempts': attempts.map((a) => a.toJson()).toList(),
       'unlocked': unlocked,
     };
     _writeStore(store);
   }
 
-  CaseProgress _progress(CaseFile full, int day) {
-    final s = _dayState(day);
+  CaseProgress _progress(CaseFile full, _Slot slot) {
+    final s = _state(slot);
     final won = s.attempts.any((a) => a.correct);
-    final expired = day < _today;
+    final expired = slot.day < _today;
     final done = won || s.attempts.length >= maxAttempts || expired;
+    final base = computeScore(won: won, attempts: s.attempts.length, hints: s.unlocked.length);
     return CaseProgress(
       attempts: s.attempts,
       unlocked: s.unlocked.toSet(),
@@ -87,40 +94,52 @@ class LocalGameBackend implements GameBackend {
       done: done,
       won: won,
       expired: expired,
-      score: computeScore(won: won, attempts: s.attempts.length, hints: s.unlocked.length),
+      score: scaleScore(base, slot.difficulty.multiplier),
       solution: won || expired ? full.solution : null,
     );
   }
 
-  CaseFile _public(CaseFile full, int day) =>
-      full.publicView(id: refFor(day), dayNumber: day, caseDate: dateOfDay(day));
+  CaseFile _public(CaseFile full, _Slot s) => full.publicView(
+        id: refFor(s.day, s.difficulty),
+        dayNumber: s.day,
+        caseDate: dateOfDay(s.day),
+        difficulty: s.difficulty,
+      );
 
-  Future<int> _openToday(String ref) async {
-    final day = _dayOf(ref);
-    if (day != _today) throw const BackendException('Ta sprawa jest już zamknięta. Po północy czeka nowa.');
-    final p = _progress(await _full(day), day);
+  Future<_Slot> _openToday(String ref) async {
+    final slot = _slotOf(ref);
+    if (slot.day != _today) throw const BackendException('Ta sprawa jest już zamknięta. Po północy czeka nowa.');
+    final p = _progress(await _full(slot), slot);
     if (p.done) throw const BackendException('Ta sprawa jest już zakończona.');
-    return day;
+    return slot;
   }
 
   @override
-  Future<TodayResult> today() async {
+  Future<TodayResult> today(Difficulty difficulty) async {
     final day = _today;
-    final full = await _full(day);
+    final slot = (day: day, difficulty: difficulty);
+    final full = await _full(slot);
     final now = _clock();
+    final levels = <Difficulty, LevelStatus>{};
+    for (final d in Difficulty.values) {
+      final s = (day: day, difficulty: d);
+      final p = _progress(await _full(s), s);
+      levels[d] = LevelStatus(won: p.won, done: p.done);
+    }
     return TodayResult(
-      caseFile: _public(full, day),
-      progress: _progress(full, day),
+      caseFile: _public(full, slot),
+      progress: _progress(full, slot),
       closesAt: DateTime(now.year, now.month, now.day + 1),
+      levels: levels,
     );
   }
 
   @override
   Future<CaseView> caseById(String ref) async {
-    final day = _dayOf(ref);
-    if (day > _today) throw const BackendException('Nie znaleziono sprawy.');
-    final full = await _full(day);
-    return CaseView(_public(full, day), _progress(full, day));
+    final slot = _slotOf(ref);
+    if (slot.day > _today) throw const BackendException('Nie znaleziono sprawy.');
+    final full = await _full(slot);
+    return CaseView(_public(full, slot), _progress(full, slot));
   }
 
   @override
@@ -130,9 +149,9 @@ class LocalGameBackend implements GameBackend {
     required String motive,
     required String evidence,
   }) async {
-    final day = await _openToday(caseRef);
-    final full = await _full(day);
-    final s = _dayState(day);
+    final slot = await _openToday(caseRef);
+    final full = await _full(slot);
+    final s = _state(slot);
 
     final ev = full.evidence.where((e) => e.id == evidence).toList();
     final validChoice = full.suspects.any((x) => x.id == culprit) &&
@@ -151,33 +170,35 @@ class LocalGameBackend implements GameBackend {
         result: [culprit == sol.culprit, motive == sol.motive, sol.evidence.contains(evidence)],
       ),
     ];
-    _saveDay(day, attempts, s.unlocked);
-    return _progress(full, day);
+    _save(slot, attempts, s.unlocked);
+    return _progress(full, slot);
   }
 
   @override
   Future<CaseProgress> unlockHint(String caseRef, String evidenceId) async {
-    final day = await _openToday(caseRef);
-    final full = await _full(day);
+    final slot = await _openToday(caseRef);
+    final full = await _full(slot);
     if (!full.evidence.any((e) => e.id == evidenceId && e.hint)) {
       throw const BackendException('Nieprawidłowy wybór. Odśwież sprawę i spróbuj ponownie.');
     }
-    final s = _dayState(day);
+    final s = _state(slot);
     if (!s.unlocked.contains(evidenceId)) {
-      _saveDay(day, s.attempts, [...s.unlocked, evidenceId]);
+      _save(slot, s.attempts, [...s.unlocked, evidenceId]);
     }
-    return _progress(full, day);
+    return _progress(full, slot);
   }
 
   @override
   Future<Stats> stats() async {
     final today = _today;
     var played = 0, won = 0;
-    final winDays = <int>[];
-    for (final entry in _readStore().entries) {
-      final day = int.tryParse(entry.key);
-      if (day == null) continue;
-      final s = _dayState(day);
+    final winDays = <int>{};
+    for (final key in _readStore().keys) {
+      final parts = key.split(':');
+      final day = int.tryParse(parts.first);
+      final difficulty = parts.length == 2 ? Difficulty.tryFromWire(parts.last) : null;
+      if (day == null || difficulty == null) continue;
+      final s = _state((day: day, difficulty: difficulty));
       if (s.attempts.isEmpty) continue;
       final isWin = s.attempts.any((a) => a.correct);
       if (isWin) {
@@ -187,13 +208,13 @@ class LocalGameBackend implements GameBackend {
       if (isWin || s.attempts.length >= maxAttempts || day < today) played++;
     }
 
-    winDays.sort();
+    final days = winDays.toList()..sort();
     var best = 0, run = 0, streak = 0;
-    for (var i = 0; i < winDays.length; i++) {
-      run = (i > 0 && winDays[i] == winDays[i - 1] + 1) ? run + 1 : 1;
+    for (var i = 0; i < days.length; i++) {
+      run = (i > 0 && days[i] == days[i - 1] + 1) ? run + 1 : 1;
       if (run > best) best = run;
     }
-    if (winDays.isNotEmpty && winDays.last >= today - 1) streak = run;
+    if (days.isNotEmpty && days.last >= today - 1) streak = run;
 
     return Stats(streak: streak, best: best, played: played, won: won);
   }
@@ -203,19 +224,23 @@ class LocalGameBackend implements GameBackend {
     final today = _today;
     final out = <ArchiveEntry>[];
     for (var day = today - 1; day >= 1 && day >= today - 60; day--) {
-      final full = await _full(day);
-      final s = _dayState(day);
-      out.add(ArchiveEntry(
-        ref: refFor(day),
-        title: full.title,
-        kind: full.kind,
-        docket: full.docket,
-        place: full.place,
-        caseDate: dateOfDay(day),
-        dayNumber: day,
-        won: s.attempts.any((a) => a.correct),
-        attempts: s.attempts.length,
-      ));
+      for (final difficulty in Difficulty.values) {
+        final slot = (day: day, difficulty: difficulty);
+        final full = await _full(slot);
+        final s = _state(slot);
+        out.add(ArchiveEntry(
+          ref: refFor(day, difficulty),
+          title: full.title,
+          kind: full.kind,
+          difficulty: difficulty,
+          docket: full.docket,
+          place: full.place,
+          caseDate: dateOfDay(day),
+          dayNumber: day,
+          won: s.attempts.any((a) => a.correct),
+          attempts: s.attempts.length,
+        ));
+      }
     }
     return out;
   }

@@ -30,12 +30,65 @@ void main() {
     return g;
   }
 
-  CaseFile fullFor(GameController g) => cases[(g.current.dayNumber! - 1) % cases.length];
+  CaseFile fullFor(GameController g) =>
+      cases[(g.current.dayNumber! - 1 + g.current.difficulty.index) % cases.length];
+
+  Future<void> useLevel(Difficulty d) async {
+    SharedPreferences.setMockInitialValues({'daily-case:difficulty': d.wire});
+    prefs = await SharedPreferences.getInstance();
+  }
 
   setUp(() async {
-    SharedPreferences.setMockInitialValues({});
-    prefs = await SharedPreferences.getInstance();
+    await useLevel(Difficulty.easy);
     now = DateTime(2026, 10, 7, 12);
+  });
+
+  group('difficulty choice', () {
+    test('first launch asks for a level, choice is remembered', () async {
+      SharedPreferences.setMockInitialValues({});
+      prefs = await SharedPreferences.getInstance();
+      final g = await loaded();
+      expect(g.needsDifficultyChoice, isTrue);
+      await g.setDifficulty(Difficulty.hard);
+      expect(g.needsDifficultyChoice, isFalse);
+      expect(g.current.difficulty, Difficulty.hard);
+      expect((await loaded()).difficulty, Difficulty.hard);
+    });
+
+    test('each level has a different case on the same day', () async {
+      final g = await loaded();
+      final titles = <String>{};
+      for (final d in Difficulty.values) {
+        await g.setDifficulty(d);
+        expect(g.current.difficulty, d);
+        titles.add(g.current.title);
+      }
+      expect(titles.length, 3);
+      expect(g.levels.keys.toSet(), Difficulty.values.toSet());
+    });
+
+    test('levels keep separate progress and a win shows in the switcher', () async {
+      final g = await loaded();
+      final s = fullFor(g).solution!;
+      await g.accuse(culprit: s.culprit, motive: s.motive, evidence: s.evidence.first);
+      expect(g.levels[Difficulty.easy]?.won, isTrue);
+
+      await g.setDifficulty(Difficulty.hard);
+      expect(g.progress.attempts, isEmpty);
+      expect(g.levels[Difficulty.easy]?.won, isTrue);
+      expect(g.levels[Difficulty.hard]?.won, isFalse);
+    });
+
+    test('score multiplier: medium x1.5, hard x2', () async {
+      for (final (level, expected) in [(Difficulty.medium, 150), (Difficulty.hard, 200)]) {
+        await useLevel(level);
+        final g = await loaded();
+        final s = fullFor(g).solution!;
+        await g.accuse(culprit: s.culprit, motive: s.motive, evidence: s.evidence.first);
+        expect(g.progress.score, expected);
+        expect(g.shareText, contains(level.label.toUpperCase()));
+      }
+    });
   });
 
   test('day one: case #1 without solution or hint texts', () async {
@@ -87,7 +140,7 @@ void main() {
 
     now = DateTime(2026, 10, 8, 9);
     final next = await loaded();
-    final err = await next.openArchive(LocalGameBackend.refFor(1));
+    final err = await next.openArchive(LocalGameBackend.refFor(1, Difficulty.easy));
     expect(err, isNull);
     expect(next.isDaily, isFalse);
     expect(next.progress.solution?.culprit, sol.culprit);
@@ -98,31 +151,37 @@ void main() {
     final sol = fullFor(g).solution!;
     now = DateTime(2026, 10, 8, 0, 5);
     await expectLater(
-      backend().accuse(LocalGameBackend.refFor(1),
+      backend().accuse(LocalGameBackend.refFor(1, Difficulty.easy),
           culprit: sol.culprit, motive: sol.motive, evidence: sol.evidence.first),
       throwsA(isA<BackendException>()),
     );
-    final view = await backend().caseById(LocalGameBackend.refFor(1));
+    final view = await backend().caseById(LocalGameBackend.refFor(1, Difficulty.easy));
     expect(view.progress.lapsed, isTrue);
     expect(view.progress.solution, isNotNull);
   });
 
-  test('streak grows day by day and resets after a gap', () async {
-    Future<void> winToday() async {
+  test('streak grows day by day on any level and resets after a gap', () async {
+    Future<void> winToday(Difficulty d) async {
+      await useLevel(d);
       final g = await loaded();
       final s = fullFor(g).solution!;
       await g.accuse(culprit: s.culprit, motive: s.motive, evidence: s.evidence.first);
     }
 
-    await winToday();
+    await winToday(Difficulty.easy);
     now = DateTime(2026, 10, 8, 9);
-    await winToday();
-    expect((await loaded()).stats.streak, 2);
+    final prev = prefs.getString(LocalGameBackend.storageKey);
+    await useLevel(Difficulty.hard);
+    await prefs.setString(LocalGameBackend.storageKey, prev!);
+    final g = await loaded();
+    final s = fullFor(g).solution!;
+    await g.accuse(culprit: s.culprit, motive: s.motive, evidence: s.evidence.first);
+    expect(g.stats.streak, 2);
 
     now = DateTime(2026, 10, 10, 9);
-    final g = await loaded();
-    expect(g.stats.streak, 0);
-    expect(g.stats.best, 2);
+    final later = await loaded();
+    expect(later.stats.streak, 0);
+    expect(later.stats.best, 2);
   });
 
   test('hint reveals its text and lowers the score', () async {
@@ -147,11 +206,14 @@ void main() {
     expect(g.progress.attempts, isEmpty);
   });
 
-  test('archive lists previous days', () async {
+  test('archive lists previous days on every level', () async {
     now = DateTime(2026, 10, 10, 9);
     final g = await loaded();
     final list = await g.archive();
-    expect(list.map((e) => e.dayNumber), [3, 2, 1]);
+    expect(list.length, 9);
+    expect(list.map((e) => e.dayNumber).toSet(), {1, 2, 3});
+    expect(list.first.dayNumber, 3);
+    expect(list.take(3).map((e) => e.difficulty), Difficulty.values);
     expect(list.every((e) => !e.won && e.attempts == 0), isTrue);
   });
 

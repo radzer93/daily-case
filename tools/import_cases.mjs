@@ -8,11 +8,12 @@ const args = process.argv.slice(2);
 const startDate = args[0];
 const file = args.slice(1).find((a) => !a.startsWith('--')) ?? 'assets/cases.json';
 const only = args.find((a) => a.startsWith('--only='))?.slice(7).split(',');
+const difficulty = args.find((a) => a.startsWith('--difficulty='))?.slice(13) ?? 'easy';
 const url = process.env.SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !url || !key) {
-  console.error('Usage: SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node tools/import_cases.mjs YYYY-MM-DD [file] [--only=id1,id2]');
+if (!startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !url || !key || !['easy', 'medium', 'hard'].includes(difficulty)) {
+  console.error('Usage: SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node tools/import_cases.mjs YYYY-MM-DD [file] [--only=id1,id2] [--difficulty=easy|medium|hard]');
   process.exit(1);
 }
 
@@ -52,6 +53,7 @@ for (const [i, c] of cases.entries()) {
     },
     body: JSON.stringify({
       p_case_date: caseDate,
+      p_difficulty: difficulty,
       p_status: 'approved',
       p_kind: c.kind === CASE_KIND.inspired ? CASE_KIND.inspired : CASE_KIND.fictional,
       p_title: c.title,
@@ -63,7 +65,7 @@ for (const [i, c] of cases.entries()) {
   });
 
   if (res.ok) {
-    console.log(`✔ ${caseDate}  ${c.title}`);
+    console.log(`✔ ${caseDate}  ${difficulty}  ${c.title}`);
   } else {
     console.error(`✘ ${caseDate}  ${c.title}: ${res.status} ${await res.text()}`);
   }

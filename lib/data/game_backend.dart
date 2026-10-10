@@ -16,10 +16,16 @@ class CaseView {
 }
 
 class TodayResult {
-  const TodayResult({required this.caseFile, required this.progress, required this.closesAt});
+  const TodayResult({
+    required this.caseFile,
+    required this.progress,
+    required this.closesAt,
+    this.levels = const {},
+  });
   final CaseFile? caseFile;
   final CaseProgress progress;
   final DateTime closesAt;
+  final Map<Difficulty, LevelStatus> levels;
 }
 
 class ArchiveEntry {
@@ -27,6 +33,7 @@ class ArchiveEntry {
     required this.ref,
     required this.title,
     required this.kind,
+    required this.difficulty,
     required this.docket,
     required this.place,
     required this.caseDate,
@@ -38,6 +45,7 @@ class ArchiveEntry {
   final String ref;
   final String title;
   final CaseKind kind;
+  final Difficulty difficulty;
   final String docket;
   final String place;
   final String caseDate;
@@ -49,6 +57,7 @@ class ArchiveEntry {
         ref: j['id'] as String,
         title: j['title'] as String,
         kind: CaseKind.fromWire(j['kind'] as String?),
+        difficulty: Difficulty.fromWire(j['difficulty'] as String?),
         docket: j['docket'] as String? ?? '',
         place: j['place'] as String? ?? '',
         caseDate: j['case_date'] as String,
@@ -59,7 +68,7 @@ class ArchiveEntry {
 }
 
 abstract class GameBackend {
-  Future<TodayResult> today();
+  Future<TodayResult> today(Difficulty difficulty);
 
   Future<CaseView> caseById(String ref);
 

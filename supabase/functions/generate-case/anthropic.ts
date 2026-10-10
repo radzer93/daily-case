@@ -1,69 +1,49 @@
-export interface ToolDef {
-  name: string;
-  description: string;
-  input_schema: Record<string, unknown>;
-}
+import { type LlmClient, RETRYABLE_STATUS, sleep, type StructuredRequest, type StructuredResponse } from './llm.ts';
 
-export interface ToolCallResult<T> {
-  input: T;
-  usage: { input_tokens: number; output_tokens: number };
-  stopReason: string;
-}
+export function anthropicClient(apiKey: string, model: string): LlmClient {
+  return {
+    provider: 'anthropic',
+    model,
+    async generate<T>(r: StructuredRequest): Promise<StructuredResponse<T>> {
+      const body: Record<string, unknown> = {
+        model,
+        max_tokens: r.maxTokens,
+        system: r.system,
+        messages: [{ role: 'user', content: r.user }],
+        tools: [{ name: r.name, description: r.description, input_schema: r.schema }],
+        tool_choice: { type: 'tool', name: r.name },
+      };
+      if (r.temperature !== undefined) body.temperature = r.temperature;
 
-export interface ToolCallOptions {
-  apiKey: string;
-  model: string;
-  system: string;
-  user: string;
-  tool: ToolDef;
-  maxTokens: number;
-  temperature?: number;
-}
+      let lastError = '';
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) await sleep(2000 * attempt);
 
-const RETRYABLE = new Set([429, 500, 502, 503, 504, 529]);
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify(body),
+        });
 
-export async function callTool<T>(o: ToolCallOptions): Promise<ToolCallResult<T>> {
-  const body: Record<string, unknown> = {
-    model: o.model,
-    max_tokens: o.maxTokens,
-    system: o.system,
-    messages: [{ role: 'user', content: o.user }],
-    tools: [o.tool],
-    tool_choice: { type: 'tool', name: o.tool.name },
+        if (!res.ok) {
+          lastError = `Anthropic API ${res.status}: ${(await res.text()).slice(0, 500)}`;
+          if (RETRYABLE_STATUS.has(res.status)) continue;
+          throw new Error(lastError);
+        }
+
+        const data = await res.json();
+        const block = (data.content ?? []).find(
+          (b: { type: string; name?: string }) => b.type === 'tool_use' && b.name === r.name,
+        );
+        if (!block) throw new Error(`Model did not call tool ${r.name} (stop_reason: ${data.stop_reason}).`);
+        if (data.stop_reason === 'max_tokens') throw new Error('Response truncated (max_tokens). Increase GEN_MAX_TOKENS.');
+        return { data: block.input as T, usage: data.usage ?? {} };
+      }
+      throw new Error(lastError || 'Anthropic API: unknown error.');
+    },
   };
-  if (o.temperature !== undefined) body.temperature = o.temperature;
-
-  let lastError = '';
-  for (let attempt = 0; attempt < 3; attempt++) {
-    if (attempt > 0) await new Promise((r) => setTimeout(r, 2000 * attempt));
-
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': o.apiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-      lastError = `Anthropic API ${res.status}: ${(await res.text()).slice(0, 500)}`;
-      if (RETRYABLE.has(res.status)) continue;
-      throw new Error(lastError);
-    }
-
-    const data = await res.json();
-    const block = (data.content ?? []).find(
-      (b: { type: string; name?: string }) => b.type === 'tool_use' && b.name === o.tool.name,
-    );
-    if (!block) {
-      throw new Error(`Model did not call tool ${o.tool.name} (stop_reason: ${data.stop_reason}).`);
-    }
-    if (data.stop_reason === 'max_tokens') {
-      throw new Error('Response truncated (max_tokens). Increase GEN_MAX_TOKENS.');
-    }
-    return { input: block.input as T, usage: data.usage, stopReason: data.stop_reason };
-  }
-  throw new Error(lastError || 'Anthropic API: unknown error.');
 }

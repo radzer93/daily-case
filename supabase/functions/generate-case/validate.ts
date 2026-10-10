@@ -1,4 +1,5 @@
-import type { GeneratedCase, GenEvidence, SolverAnswer } from './types.ts';
+import { PROFILES } from './difficulty.ts';
+import type { Difficulty, GeneratedCase, GenEvidence, SolverAnswer } from './types.ts';
 
 const ID_RE = /^[a-z][a-z0-9_-]{0,23}$/;
 
@@ -15,8 +16,9 @@ function dupes(ids: string[]): string[] {
   return [...out];
 }
 
-export function validateCase(input: unknown): string[] {
+export function validateCase(input: unknown, difficulty: Difficulty): string[] {
   const errors: string[] = [];
+  const profile = PROFILES[difficulty];
   const c = input as GeneratedCase;
   if (!c || typeof c !== 'object') return ['Case object missing.'];
 
@@ -28,11 +30,13 @@ export function validateCase(input: unknown): string[] {
   if (!strArray(c.brief, 1, 3, 700)) errors.push('brief: 1–3 paragraphs of up to 700 characters required.');
 
   const suspects = Array.isArray(c.suspects) ? c.suspects : [];
-  if (suspects.length < 3 || suspects.length > 4) errors.push('suspects: 3–4 people required.');
+  if (suspects.length !== profile.suspects) {
+    errors.push(`suspects: exactly ${profile.suspects} required for ${difficulty}, found ${suspects.length}.`);
+  }
   for (const s of suspects) {
     if (!ID_RE.test(String(s?.id))) errors.push(`suspects: invalid id "${s?.id}".`);
     if (!isStr(s?.name, 60)) errors.push(`suspects[${s?.id}]: name missing.`);
-    if (!Number.isInteger(s?.age) || s.age < 16 || s.age > 95) errors.push(`suspects[${s?.id}]: age outside 16–95.`);
+    if (!Number.isInteger(s?.age) || s.age < 18 || s.age > 95) errors.push(`suspects[${s?.id}]: age outside 18–95.`);
     if (!isStr(s?.role, 120)) errors.push(`suspects[${s?.id}]: role missing.`);
     if (!strArray(s?.statement, 1, 3, 700)) errors.push(`suspects[${s?.id}]: statement must be 1–3 paragraphs of up to 700 characters.`);
   }
@@ -40,7 +44,9 @@ export function validateCase(input: unknown): string[] {
   for (const d of dupes(suspectIds)) errors.push(`suspects: duplicate id "${d}".`);
 
   const evidence: GenEvidence[] = Array.isArray(c.evidence) ? c.evidence : [];
-  if (evidence.length !== 6) errors.push('evidence: exactly 6 items required.');
+  if (evidence.length !== profile.evidence) {
+    errors.push(`evidence: exactly ${profile.evidence} items required for ${difficulty}, found ${evidence.length}.`);
+  }
   for (const e of evidence) {
     if (!isStr(e?.id, 10)) errors.push('evidence: id missing.');
     if (!isStr(e?.title, 80)) errors.push(`evidence[${e?.id}]: title missing.`);

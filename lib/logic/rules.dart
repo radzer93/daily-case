@@ -24,6 +24,8 @@ int computeScore({required bool won, required int attempts, required int hints})
   return s < minScore ? minScore : s;
 }
 
+int scaleScore(int base, double multiplier) => (base * multiplier).round();
+
 String formatClock(Duration d) {
   String two(int n) => n.toString().padLeft(2, '0');
   final s = d.inSeconds < 0 ? 0 : d.inSeconds;
@@ -45,9 +47,11 @@ String buildShareText({
   required bool won,
   required int score,
   required int streak,
+  String? level,
 }) {
   final grid = rows.map((r) => r.map((b) => b ? '🟩' : '🟥').join()).join('\n');
   final result = won ? '$score pkt' : 'umorzona';
   final tail = won && streak > 1 ? ' · seria $streak' : '';
-  return 'Sprawa Dnia #$day · $title\n$grid\nEkspertyzy: $hints · $result$tail';
+  final head = level == null ? 'Sprawa Dnia #$day · $title' : 'Sprawa Dnia #$day · ${level.toUpperCase()} · $title';
+  return '$head\n$grid\nEkspertyzy: $hints · $result$tail';
 }

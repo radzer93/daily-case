@@ -6,6 +6,7 @@ import '../widgets/buttons.dart';
 import '../widgets/case_widgets.dart';
 import 'archive_screen.dart';
 import 'case_tabs.dart';
+import 'difficulty_screen.dart';
 
 class CaseScreen extends StatefulWidget {
   const CaseScreen({super.key, required this.controller});
@@ -62,6 +63,14 @@ class _CaseScreenState extends State<CaseScreen>
       listenable: c,
       builder: (context, _) {
         final colors = context.colors;
+        if (c.needsDifficultyChoice) return DifficultyScreen(controller: c);
+
+        final switcher = DifficultySwitcher(
+          selected: c.difficulty,
+          levels: c.levels,
+          onSelect: c.setDifficulty,
+          enabled: !c.busy && c.state != LoadState.loading,
+        );
 
         final appBar = AppBar(
           titleSpacing: 16,
@@ -94,7 +103,16 @@ class _CaseScreenState extends State<CaseScreen>
         );
 
         if (!c.hasCase) {
-          return Scaffold(appBar: appBar, body: _StatusView(controller: c, onArchive: _openArchive));
+          return Scaffold(
+            appBar: appBar,
+            body: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                switcher,
+                Expanded(child: _StatusView(controller: c, onArchive: _openArchive)),
+              ],
+            ),
+          );
         }
 
         final cf = c.current;
@@ -110,6 +128,7 @@ class _CaseScreenState extends State<CaseScreen>
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (c.isDaily) switcher,
               PoliceTape(words: ['Miejsce zdarzenia', 'Nie przekraczać', 'Policja', cf.place, 'Sygn. ${cf.docket}']),
               CaseHeader(caseFile: cf, isDaily: c.isDaily, onBackToDaily: c.openDaily),
               TabBar(
@@ -172,7 +191,7 @@ class _StatusView extends StatelessWidget {
     final title = isError ? 'Brak połączenia z archiwum' : 'Akta jeszcze nie dotarły';
     final body = isError
         ? (controller.errorMessage ?? 'Spróbuj ponownie za chwilę.')
-        : 'Dzisiejsza sprawa jest w drodze. Zajrzyj za chwilę albo przejrzyj zamknięte sprawy.';
+        : 'Dzisiejsza sprawa na poziomie ${controller.difficulty.label.toLowerCase()} jest w drodze. Zajrzyj za chwilę, wybierz inny poziom albo przejrzyj zamknięte sprawy.';
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 32, 16, 40),

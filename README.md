@@ -1,6 +1,6 @@
 # daily-case
 
-"Sprawa Dnia" is a daily crime puzzle for Android and iOS (Flutter). Every day all players get the same case. They must name the culprit, the motive and the piece of evidence that proves it. There are three attempts and hints cost points. At midnight (Polish time) the case lapses and its solution is revealed in the archive the next day.
+"Sprawa Dnia" is a daily crime puzzle for Android and iOS (Flutter). Every day there are three cases, one per difficulty level (easy, medium, hard), and all players on a level get the same case. Players choose a level on first launch and can switch at any time. They must name the culprit, the motive and the piece of evidence that proves it. There are three attempts and hints cost points. At midnight (Polish time) the case lapses and its solution is revealed in the archive the next day.
 
 Fictional cases are generated daily by an AI model, which also checks that each puzzle is fair. Cases inspired by real events are written by hand and uploaded with a script.
 
@@ -18,16 +18,18 @@ SupabaseGameBackend ──RPC──▶     public.get_today_case / submit_accusa
                                  private.attempts   (player accusations)
                                  private.hint_unlocks
                                    ▲
-pg_cron (hourly) ──HTTP──▶       Edge Function generate-case
-                                   ├─ seed (era, setting, deduction mechanism)
-                                   ├─ model: save_case (structured output)
-                                   ├─ fair-play validation
-                                   ├─ 3× blind solver (no solution, no hints)
-                                   └─ saves up to 7 days ahead
+pg_cron (every 15 min) ──HTTP──▶ Edge Function generate-case
+                                   ├─ seed (place, era, setting, mechanism, level, intensity)
+                                   ├─ model (Gemini by default): structured JSON output
+                                   ├─ fair-play validation for the level
+                                   ├─ saves a draft
+                                   ├─ next run: 3× blind solver (no solution, no hints)
+                                   └─ approves or rejects; buffer of 7 days × 3 levels
 ```
 
 - **The solution never reaches the app early.** The server checks each accusation and returns only per-element hits (🟩🟥). The solution is sent after a win or from the next day.
-- **7-day buffer.** If generation fails or the API is down, the game keeps running and the function retries every hour.
+- **7-day buffer.** If generation fails or the API is down, the game keeps running and the function retries on the next run.
+- **Two-step generation.** One run writes a draft, the next run checks it with the solver, so a single run makes at most 3 model calls. A draft whose check fails 3 times is rejected, and a day and level that failed 3 times in the last 6 hours is skipped for a while, so one bad slot never blocks the queue.
 - **Local mode.** Without Supabase configuration the app plays the cases from `assets/cases.json` under the same rules. Useful for UI work.
 
 ## Running the app
@@ -47,7 +49,7 @@ flutter run --dart-define-from-file=env.json
 
 ## Deploying the backend (Supabase)
 
-Requirements: a Supabase account (the free plan is enough to start), the [Supabase CLI](https://supabase.com/docs/guides/cli) and an Anthropic API key.
+Requirements: a Supabase account (the free plan is enough to start), the [Supabase CLI](https://supabase.com/docs/guides/cli) and a Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey) (the free tier is enough: about 4 model calls per case, 3 cases a day). A Google AI Pro subscription does not include API access; the key is separate. Anthropic can be used instead with `LLM_PROVIDER=anthropic`.
 
 1. **Project.** Create a project in the Supabase dashboard. Under *Authentication → Sign In / Providers* enable **Allow anonymous sign-ins**.
 2. **Database.**
@@ -65,31 +67,34 @@ Requirements: a Supabase account (the free plan is enough to start), the [Supaba
    ```bash
    curl -X POST https://<project-ref>.supabase.co/functions/v1/generate-case \
      -H "x-cron-secret: <CRON_SECRET>" -H "Content-Type: application/json" \
-     -d '{"wait": true}'
+     -d '{"wait": true, "full": true, "date": "2026-10-11", "difficulty": "easy"}'
    ```
-   The response contains `approved` (or `pending`) and the case title. Rejected attempts and their reasons are stored in `private.generation_log`.
+   The response contains `approved` (or `pending`) and the case title. `full` writes and checks the case in one call, which can take a minute or two. Rejected attempts and their reasons are stored in `private.generation_log`.
 5. **Schedule.** Replace the URL and secret in `supabase/sql/cron_generate.sql` and run it once in the SQL Editor.
-6. **Handwritten cases (optional).** Upload the 5 cases from `assets/cases.json` for consecutive days starting 8 October:
+6. **Handwritten cases (optional).** Upload the 5 cases from `assets/cases.json` for consecutive days starting 8 October on one level (`--difficulty`, default `easy`, which matches their 3 suspects and 6 pieces of evidence):
    ```bash
    SUPABASE_URL=https://<project-ref>.supabase.co SUPABASE_SERVICE_ROLE_KEY=<key> \
-     node tools/import_cases.mjs 2026-10-08
+     node tools/import_cases.mjs 2026-10-08 --difficulty=easy
    ```
-   The generator skips days that already have a case. Keep the `service_role` key local; never put it in the app or the repository.
+   The generator skips day and level pairs that already have a case. Keep the `service_role` key local; never put it in the app or the repository.
 
 ### generate-case parameters
 
 The call requires the `x-cron-secret` header. The body is optional:
 
 - `{"wait": true}` waits for the result (for manual testing). Without it the work runs in the background and the response is `202`.
-- `{"date": "2026-10-20"}` targets a specific day inside the buffer.
+- `{"date": "2026-10-20", "difficulty": "hard"}` targets a specific day and level inside the buffer (level defaults to `medium`).
+- `{"full": true}` writes the draft and runs the solver in the same call.
+
+Without a target, a run first checks the oldest draft; if there is none, it writes a draft for the earliest missing day and level.
 
 ### Review before publishing
 
 With `REQUIRE_REVIEW=true` new cases are stored as `pending` and are not shown to players. Queries for the buffer, the generation log and player results are in `supabase/sql/review.sql`. The 7-day buffer leaves time for review. A rejected day is regenerated.
 
 ```sql
-update private.cases set status = 'approved' where case_date = date '2026-10-15' and status = 'pending';
-update private.cases set status = 'rejected' where case_date = date '2026-10-15' and status = 'pending';
+update private.cases set status = 'approved' where case_date = date '2026-10-15' and difficulty = 'medium' and status = 'pending';
+update private.cases set status = 'rejected' where case_date = date '2026-10-15' and difficulty = 'medium' and status = 'pending';
 ```
 
 ### Schedule management
@@ -106,14 +111,22 @@ select cron.unschedule('daily-case-generate');
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `GEN_MODEL` | `claude-sonnet-5-5` | model that writes the case |
+| `LLM_PROVIDER` | `gemini` | `gemini` or `anthropic` |
+| `GEMINI_API_KEY` | | key from Google AI Studio (for `gemini`) |
+| `ANTHROPIC_API_KEY` | | key from the Anthropic Console (for `anthropic`) |
+| `GEN_MODEL` | `gemini-3.8-flash` / `claude-sonnet-5-5` | model that writes the case |
 | `SOLVER_MODEL` | same as `GEN_MODEL` | model that checks solvability |
+| `GEMINI_THINKING` | `high` | Gemini thinking level: `minimal`, `low`, `medium`, `high` |
 | `SOLVER_RUNS` | `3` | number of independent solver runs that must agree |
+| `SOLVER_DELAY_MS` | `2000` | pause between solver runs (free-tier rate limits) |
+| `SOLVER_THINKING` | `medium` | Gemini thinking level for the solver |
 | `DAYS_AHEAD` | `7` | how far ahead to keep the buffer |
+| `DARK_RATIO` | `0.25` | share of cases written in the darker 16+ tone |
 | `REQUIRE_REVIEW` | `false` | `true` = cases wait for manual approval |
-| `GEN_MAX_TOKENS` | `8000` | maximum length of the model response |
+| `GEN_MAX_TOKENS` | `24000` / `8000` | output limit for the case; raise it if responses are cut off |
+| `SOLVER_MAX_TOKENS` | `8000` / `1500` | output limit for one solver run |
 
-One invocation produces one case: generation plus 3 solver runs in parallel, a few model calls per day. Edge Functions on the free plan have a 150 s limit. If `cron.job_run_details` shows interrupted calls with no entry in `generation_log`, lower `GEN_MAX_TOKENS` or `SOLVER_RUNS`.
+Model names and free-tier quotas change; check the current list and your quota in Google AI Studio. Free-tier prompts may be used by Google to improve its products, which is acceptable here because only seeds and fictional cases are sent.
 
 ### Known limitation
 
@@ -151,8 +164,9 @@ deno test supabase/functions/generate-case/validate_test.ts
 ## Game rules (source of truth: SQL in `supabase/migrations`)
 
 - Day 1 is 7 October 2026. Days are counted in the Europe/Warsaw time zone.
-- Score: 100 − 20 per missed attempt − 10 per hint, minimum 10.
-- Streak: consecutive days with a solved case, counted if the last win was today or yesterday.
+- Three levels per day: easy (3 suspects, 6 pieces of evidence), medium (4 suspects, 6), hard (4 suspects, 7, two combined mechanisms). Each level has its own attempts.
+- Score: 100 − 20 per missed attempt − 10 per hint, minimum 10, multiplied by ×1 / ×1.5 / ×2 for easy / medium / hard.
+- Streak: consecutive days with at least one solved case on any level, counted if the last win was today or yesterday.
 - After midnight accusations are rejected and the case moves to the archive with its solution.
 
 When changing these numbers, update both the SQL and `lib/logic/rules.dart` (local mode).

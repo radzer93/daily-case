@@ -43,6 +43,28 @@ void main() {
     });
   });
 
+  test('scaleScore applies the difficulty multiplier', () {
+    expect(scaleScore(80, 1.0), 80);
+    expect(scaleScore(70, 1.5), 105);
+    expect(scaleScore(10, 2.0), 20);
+  });
+
+  test('share text names the level when given', () {
+    final text = buildShareText(
+      title: 'Lep na muchy',
+      day: 3,
+      rows: const [
+        [true, true, true],
+      ],
+      hints: 1,
+      won: true,
+      score: 180,
+      streak: 0,
+      level: 'Trudna',
+    );
+    expect(text, 'Sprawa Dnia #3 · TRUDNA · Lep na muchy\n🟩🟩🟩\nEkspertyzy: 1 · 180 pkt');
+  });
+
   test('plural', () {
     expect(plural(1, 'próba', 'próby', 'prób'), 'próba');
     expect(plural(2, 'próba', 'próby', 'prób'), 'próby');

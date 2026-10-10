@@ -31,6 +31,21 @@ class GameController extends ChangeNotifier {
   CaseView? _daily;
   CaseView? _archived;
   DateTime? _closesAt;
+  Map<Difficulty, LevelStatus> levels = const {};
+
+  static const _difficultyKey = 'daily-case:difficulty';
+
+  Difficulty? get chosenDifficulty => Difficulty.tryFromWire(_prefs.getString(_difficultyKey));
+
+  bool get needsDifficultyChoice => chosenDifficulty == null;
+
+  Difficulty get difficulty => chosenDifficulty ?? Difficulty.medium;
+
+  Future<void> setDifficulty(Difficulty d) async {
+    await _prefs.setString(_difficultyKey, d.wire);
+    _archived = null;
+    await load();
+  }
 
   bool get isDaily => _archived == null;
 
@@ -60,6 +75,7 @@ class GameController extends ChangeNotifier {
         won: progress.won,
         score: progress.score,
         streak: stats.streak,
+        level: current.difficulty.label,
       );
 
   String get _excludedKey => 'daily-case:excluded:${current.id}';
@@ -75,21 +91,29 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
+  int _loadSeq = 0;
+
   Future<void> load() async {
+    final token = ++_loadSeq;
     state = LoadState.loading;
     errorMessage = null;
     notifyListeners();
     try {
-      final t = await backend.today();
+      final t = await backend.today(difficulty);
+      final s = await backend.stats();
+      if (token != _loadSeq) return;
       _closesAt = t.closesAt;
+      levels = t.levels;
       _daily = t.caseFile == null ? null : CaseView(t.caseFile!, t.progress);
       _archived = null;
-      stats = await backend.stats();
+      stats = s;
       state = _daily == null ? LoadState.noCase : LoadState.ready;
     } on BackendException catch (e) {
+      if (token != _loadSeq) return;
       errorMessage = e.message;
       state = LoadState.error;
     } catch (e) {
+      if (token != _loadSeq) return;
       errorMessage = 'Coś poszło nie tak. Spróbuj ponownie.';
       debugPrint('GameController.load: $e');
       state = LoadState.error;
@@ -129,6 +153,7 @@ class GameController extends ChangeNotifier {
     try {
       final p = await call();
       _daily = CaseView(_daily!.caseFile, p);
+      levels = {...levels, _daily!.caseFile.difficulty: LevelStatus(won: p.won, done: p.done)};
       if (refreshStats && p.done) {
         stats = await backend.stats().catchError((_) => stats);
       }

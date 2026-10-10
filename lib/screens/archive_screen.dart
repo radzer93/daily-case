@@ -116,6 +116,7 @@ class _ArchiveTile extends StatelessWidget {
 
     final sub = [
       '#${e.dayNumber}',
+      e.difficulty.label,
       e.place,
       e.kind.label,
     ].where((s) => s.isNotEmpty).join(' · ').toUpperCase();

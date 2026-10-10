@@ -1,6 +1,8 @@
 import 'case_kind.dart';
+import 'difficulty.dart';
 
 export 'case_kind.dart';
+export 'difficulty.dart';
 
 class Suspect {
   const Suspect({
@@ -93,6 +95,7 @@ class CaseFile {
     this.note,
     this.caseDate,
     this.dayNumber,
+    this.difficulty = Difficulty.medium,
   });
 
   final String id;
@@ -109,6 +112,7 @@ class CaseFile {
   final Solution? solution;
   final String? caseDate;
   final int? dayNumber;
+  final Difficulty difficulty;
 
   bool get isInspired => kind == CaseKind.inspired;
 
@@ -133,7 +137,7 @@ class CaseFile {
     return '?';
   }
 
-  CaseFile publicView({required String id, int? dayNumber, String? caseDate}) => CaseFile(
+  CaseFile publicView({required String id, int? dayNumber, String? caseDate, Difficulty? difficulty}) => CaseFile(
         id: id,
         title: title,
         kind: kind,
@@ -150,6 +154,7 @@ class CaseFile {
         motives: motives,
         caseDate: caseDate,
         dayNumber: dayNumber,
+        difficulty: difficulty ?? this.difficulty,
       );
 
   factory CaseFile.fromJson(Map<String, dynamic> j) => CaseFile(
@@ -175,5 +180,6 @@ class CaseFile {
             : Solution.fromJson(Map<String, dynamic>.from(j['solution'] as Map)),
         caseDate: j['case_date'] as String?,
         dayNumber: (j['day_number'] as num?)?.toInt(),
+        difficulty: Difficulty.fromWire(j['difficulty'] as String?),
       );
 }

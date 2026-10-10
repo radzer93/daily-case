@@ -6,7 +6,7 @@ select vault.create_secret('YOUR_CRON_SECRET', 'cron_secret');
 
 select cron.schedule(
   'daily-case-generate',
-  '7 * * * *',
+  '*/15 * * * *',
   $$
   select net.http_post(
     url     := (select decrypted_secret from vault.decrypted_secrets where name = 'project_url')

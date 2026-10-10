@@ -41,12 +41,17 @@ class SupabaseGameBackend implements GameBackend {
       v == null ? CaseProgress.empty : CaseProgress.fromJson(_map(v));
 
   @override
-  Future<TodayResult> today() async {
-    final res = _map(await _rpc('get_today_case'));
+  Future<TodayResult> today(Difficulty difficulty) async {
+    final res = _map(await _rpc('get_today_case', {'p_difficulty': difficulty.wire}));
+    final levels = res['levels'] == null ? const <String, dynamic>{} : _map(res['levels']);
     return TodayResult(
       caseFile: res['case'] == null ? null : CaseFile.fromJson(_map(res['case'])),
       progress: _progress(res['progress']),
       closesAt: DateTime.parse(res['closes_at'] as String).toLocal(),
+      levels: {
+        for (final d in Difficulty.values)
+          d: levels[d.wire] == null ? const LevelStatus(available: false) : LevelStatus.fromJson(_map(levels[d.wire])),
+      },
     );
   }
 

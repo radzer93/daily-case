@@ -4,6 +4,11 @@ export const CaseKind = {
 } as const;
 export type CaseKind = (typeof CaseKind)[keyof typeof CaseKind];
 
+export const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
+export type Difficulty = (typeof DIFFICULTIES)[number];
+
+export type Intensity = 'standard' | 'dark';
+
 export interface GenSuspect {
   id: string;
   name: string;
@@ -62,11 +67,15 @@ export interface SolverAnswer {
 }
 
 export interface Seed {
+  difficulty: Difficulty;
+  intensity: Intensity;
   era: string;
+  locale: string;
   eraHint: string;
   setting: string;
   crime: string;
   mechanism: string;
+  secondMechanism?: string;
 }
 
 export interface RecentCase {
