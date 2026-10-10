@@ -1,8 +1,8 @@
 import { assert, assertEquals } from 'jsr:@std/assert@1';
 import { EXAMPLE_CASE } from './example_case.ts';
 import { LOCALES, pickSeed, SETTINGS } from './seeds.ts';
-import type { GeneratedCase, SolverAnswer } from './types.ts';
-import { evaluateSolverRuns, splitCase, validateCase } from './validate.ts';
+import { EditorDecision, type EditorScores, type GeneratedCase, type SolverAnswer } from './types.ts';
+import { decideEditorial, evaluateSolverRuns, splitCase, validateCase } from './validate.ts';
 
 const base = (): GeneratedCase => structuredClone(EXAMPLE_CASE) as GeneratedCase;
 
@@ -103,4 +103,41 @@ Deno.test('hard seed combines two different mechanisms', () => {
 Deno.test('dark ratio controls intensity', () => {
   assertEquals(pickSeed([], { difficulty: 'easy', darkRatio: 0 }).intensity, 'standard');
   assertEquals(pickSeed([], { difficulty: 'easy', darkRatio: 1 }).intensity, 'dark');
+});
+
+const scores = (overrides: Partial<EditorScores> = {}): EditorScores => ({
+  logic: 5,
+  fairness: 5,
+  difficulty_fit: 4,
+  setting: 4,
+  language: 5,
+  content: 5,
+  originality: 4,
+  ...overrides,
+});
+
+const THRESHOLDS = { min: 4, reject: 2 };
+
+Deno.test('editor: all scores at or above minimum approve', () => {
+  assertEquals(decideEditorial({ scores: scores(), issues: [], summary: '' }, THRESHOLDS).decision, EditorDecision.approve);
+});
+
+Deno.test('editor: a score at the reject threshold rejects', () => {
+  const v = decideEditorial({ scores: scores({ language: 2 }), issues: [], summary: '' }, THRESHOLDS);
+  assertEquals(v.decision, EditorDecision.reject);
+  assert(v.reasons[0].includes('language'));
+  assertEquals(decideEditorial({ scores: scores({ content: 1 }), issues: [], summary: '' }, THRESHOLDS).decision, EditorDecision.reject);
+});
+
+Deno.test('editor: a score between thresholds is borderline', () => {
+  assertEquals(
+    decideEditorial({ scores: scores({ originality: 3 }), issues: [], summary: '' }, THRESHOLDS).decision,
+    EditorDecision.borderline,
+  );
+});
+
+Deno.test('editor: missing or invalid scores reject', () => {
+  assertEquals(decideEditorial(null, THRESHOLDS).decision, EditorDecision.reject);
+  const bad = { ...scores(), fairness: 7 };
+  assertEquals(decideEditorial({ scores: bad, issues: [], summary: '' }, THRESHOLDS).decision, EditorDecision.reject);
 });

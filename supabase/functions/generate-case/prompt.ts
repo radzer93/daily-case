@@ -1,6 +1,6 @@
 import { INTENSITY_RULES, PROFILES, publicEvidenceCount } from './difficulty.ts';
 import { EXAMPLE_CASE } from './example_case.ts';
-import type { GeneratedCase, RecentCase, Seed } from './types.ts';
+import { EDITOR_CRITERIA, type GeneratedCase, type RecentCase, type Seed } from './types.ts';
 
 export const GENERATOR_SYSTEM = `You write crime puzzles for "Sprawa Dnia", a mobile game for players aged 16+.
 Every day all players get the same case at each difficulty level. They read the case file, evidence and suspect statements, then name the culprit, the motive and the piece of evidence that proves it. They have three attempts.
@@ -175,6 +175,51 @@ export function buildSolverUser(c: GeneratedCase): string {
   lines.push('', 'Respond with JSON matching the schema, using the ids in square brackets.');
   return lines.join('\n');
 }
+
+export const EDITOR_SYSTEM = `You are the senior editor of "Sprawa Dnia", a daily crime puzzle game for players aged 16+. Cases are written in Polish by an AI author and have already passed automated checks and blind solver runs. Nobody else reviews them before publication, so you are the last line of defence. Be strict: a mediocre case is better rejected than published.
+
+Score each criterion from 1 (unacceptable) to 5 (excellent):
+- logic: the timeline, distances, numbers and period details are consistent; nothing contradicts anything else; the explanation matches the evidence.
+- fairness: the culprit, motive and key evidence follow from public evidence by deduction; every innocent suspect is excluded by public material; no giveaway, no guessing needed.
+- difficulty_fit: the case matches the stated difficulty level (easy = one clear deduction step, medium = a few connected clues, hard = two combined mechanisms and real false leads).
+- setting: names, institutions, ranks, money and technology fit the place and era; no anachronisms.
+- language: natural, correct, idiomatic Polish; no calques, no English words, no awkward machine phrasing; statements sound spoken.
+- content: respects the limits (no sexual content, nobody under 18, no detailed torture, no usable instructions for weapons, poisons or crimes, no stereotypes, no real people or real crimes). Score 1 if any limit is broken.
+- originality: the plot and mechanism are not a cliché and differ from the recent cases.
+
+List concrete issues (in English, each one sentence, quoting the problematic fragment if useful). Give a one-sentence summary.`;
+
+export function buildEditorUser(c: GeneratedCase, difficulty: string, recent: RecentCase[]): string {
+  const avoid = recent
+    .slice(0, 20)
+    .map((r) => `- ${r.title ?? '?'} (${r.place ?? '?'})`)
+    .join('\n');
+  return `DIFFICULTY: ${difficulty.toUpperCase()}
+
+FULL CASE WITH SOLUTION (evidence with hint=true is hidden from players until unlocked):
+${JSON.stringify(c)}
+
+RECENT CASES:
+${avoid || '- none'}
+
+Respond with JSON matching the schema.`;
+}
+
+const score = (description: string) => ({ type: 'integer', minimum: 1, maximum: 5, description });
+
+export const EDITOR_SCHEMA = {
+  type: 'object',
+  required: ['issues', 'scores', 'summary'],
+  properties: {
+    issues: { type: 'array', items: { type: 'string' }, description: 'Concrete problems found; empty if none' },
+    scores: {
+      type: 'object',
+      required: [...EDITOR_CRITERIA],
+      properties: Object.fromEntries(EDITOR_CRITERIA.map((k) => [k, score(k)])),
+    },
+    summary: str('One-sentence verdict'),
+  },
+};
 
 export const SOLVER_SCHEMA = {
   type: 'object',

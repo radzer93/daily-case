@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/case_file.dart';
+import '../models/feedback.dart';
 import '../models/progress.dart';
 import 'game_backend.dart';
 
@@ -30,6 +31,7 @@ class SupabaseGameBackend implements GameBackend {
     if (raw.contains('case_closed')) return 'Ta sprawa jest już zamknięta. Po północy czeka nowa.';
     if (raw.contains('case_finished')) return 'Ta sprawa jest już zakończona.';
     if (raw.contains('invalid_choice')) return 'Nieprawidłowy wybór. Odśwież sprawę i spróbuj ponownie.';
+    if (raw.contains('case_not_finished')) return 'Ocenić można tylko sprawę, którą prowadziłeś do końca.';
     if (raw.contains('case_not_found')) return 'Nie znaleziono sprawy.';
     if (raw.contains('not_authenticated')) return 'Sesja wygasła. Uruchom aplikację ponownie.';
     return 'Błąd serwera: $raw';
@@ -78,6 +80,20 @@ class SupabaseGameBackend implements GameBackend {
   @override
   Future<CaseProgress> unlockHint(String caseRef, String evidenceId) async =>
       _progress(await _rpc('unlock_hint', {'p_case_id': caseRef, 'p_evidence_id': evidenceId}));
+
+  @override
+  Future<CaseProgress> submitFeedback(
+    String caseRef, {
+    int? rating,
+    FeedbackReason? reason,
+    String? comment,
+  }) async =>
+      _progress(await _rpc('submit_case_feedback', {
+        'p_case_id': caseRef,
+        'p_rating': rating,
+        'p_reason': reason?.wire,
+        'p_comment': comment,
+      }));
 
   @override
   Future<Stats> stats() async => Stats.fromJson(_map(await _rpc('get_my_stats')));

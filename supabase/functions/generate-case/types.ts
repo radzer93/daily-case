@@ -66,6 +66,40 @@ export interface SolverAnswer {
   reasoning: string;
 }
 
+export const EDITOR_CRITERIA = [
+  'logic',
+  'fairness',
+  'difficulty_fit',
+  'setting',
+  'language',
+  'content',
+  'originality',
+] as const;
+export type EditorCriterion = (typeof EDITOR_CRITERIA)[number];
+export type EditorScores = Record<EditorCriterion, number>;
+
+export interface EditorReview {
+  scores: EditorScores;
+  issues: string[];
+  summary: string;
+}
+
+export const EditorDecision = {
+  approve: 'approve',
+  reject: 'reject',
+  borderline: 'borderline',
+} as const;
+export type EditorDecision = (typeof EditorDecision)[keyof typeof EditorDecision];
+
+export const CaseStatus = {
+  draft: 'draft',
+  verified: 'verified',
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+export type CaseStatus = (typeof CaseStatus)[keyof typeof CaseStatus];
+
 export interface Seed {
   difficulty: Difficulty;
   intensity: Intensity;
@@ -79,6 +113,7 @@ export interface Seed {
 }
 
 export interface RecentCase {
+  id?: string;
   title?: string;
   place?: string;
   seed?: Partial<Seed> | null;

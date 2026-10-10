@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/game_backend.dart';
 import '../logic/rules.dart';
 import '../models/case_file.dart';
+import '../models/feedback.dart';
 import '../models/progress.dart';
 
 enum LoadState { loading, ready, noCase, error }
@@ -162,6 +163,39 @@ class GameController extends ChangeNotifier {
       return e.message;
     } catch (e) {
       debugPrint('GameController._mutate: $e');
+      return 'Coś poszło nie tak. Spróbuj ponownie.';
+    } finally {
+      busy = false;
+      notifyListeners();
+    }
+  }
+
+  bool get canGiveFeedback => hasCase && progress.done && progress.attempts.isNotEmpty;
+
+  Future<String?> rateCase(int rating) => _feedback(rating: rating);
+
+  Future<String?> reportCase(FeedbackReason reason, {String? comment}) =>
+      _feedback(reason: reason, comment: comment);
+
+  Future<String?> _feedback({int? rating, FeedbackReason? reason, String? comment}) async {
+    if (busy || !canGiveFeedback) return null;
+    final view = _view;
+    final wasDaily = isDaily;
+    busy = true;
+    notifyListeners();
+    try {
+      final p = await backend.submitFeedback(view.caseFile.id, rating: rating, reason: reason, comment: comment);
+      final updated = CaseView(view.caseFile, p);
+      if (wasDaily) {
+        if (identical(_daily, view)) _daily = updated;
+      } else if (identical(_archived, view)) {
+        _archived = updated;
+      }
+      return null;
+    } on BackendException catch (e) {
+      return e.message;
+    } catch (e) {
+      debugPrint('GameController._feedback: $e');
       return 'Coś poszło nie tak. Spróbuj ponownie.';
     } finally {
       busy = false;

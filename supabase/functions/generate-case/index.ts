@@ -2,18 +2,31 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { anthropicClient } from './anthropic.ts';
 import { geminiClient } from './gemini.ts';
 import { type LlmClient, sleep } from './llm.ts';
-import { buildGeneratorUser, buildSolverUser, CASE_SCHEMA, GENERATOR_SYSTEM, SOLVER_SCHEMA, SOLVER_SYSTEM } from './prompt.ts';
+import {
+  buildEditorUser,
+  buildGeneratorUser,
+  buildSolverUser,
+  CASE_SCHEMA,
+  EDITOR_SCHEMA,
+  EDITOR_SYSTEM,
+  GENERATOR_SYSTEM,
+  SOLVER_SCHEMA,
+  SOLVER_SYSTEM,
+} from './prompt.ts';
 import { pickSeed } from './seeds.ts';
 import {
   CaseKind,
+  CaseStatus,
   DIFFICULTIES,
   type Difficulty,
+  EditorDecision,
+  type EditorReview,
   type GeneratedCase,
   type RecentCase,
   type Seed,
   type SolverAnswer,
 } from './types.ts';
-import { evaluateSolverRuns, splitCase, validateCase } from './validate.ts';
+import { decideEditorial, evaluateSolverRuns, splitCase, validateCase } from './validate.ts';
 
 const env = (name: string, fallback?: string): string => {
   const v = Deno.env.get(name) ?? fallback;
@@ -38,6 +51,18 @@ const CONFIG = {
   daysAhead: () => Number(env('DAYS_AHEAD', '7')),
   darkRatio: () => Number(env('DARK_RATIO', '0.25')),
   requireReview: () => env('REQUIRE_REVIEW', 'false') === 'true',
+  editorModel: () => env('EDITOR_MODEL', CONFIG.model()),
+  editorThinking: () => env('EDITOR_THINKING', 'high'),
+  editorMaxTokens: () => Number(env('EDITOR_MAX_TOKENS', CONFIG.provider() === 'gemini' ? '12000' : '2000')),
+  editorMinScore: () => Number(env('EDITOR_MIN_SCORE', '4')),
+  editorRejectScore: () => Number(env('EDITOR_REJECT_SCORE', '2')),
+  editorBorderline: () => env('EDITOR_BORDERLINE', EditorDecision.reject),
+};
+
+const BORDERLINE_STATUS: Record<string, CaseStatus> = {
+  [EditorDecision.reject]: CaseStatus.rejected,
+  [EditorDecision.approve]: CaseStatus.approved,
+  pending: CaseStatus.pending,
 };
 
 function llm(model: string, thinking = env('GEMINI_THINKING', 'high')): LlmClient {
@@ -58,7 +83,14 @@ async function log(caseDate: string | null, ok: boolean, stage: string, detail: 
 
 type Outcome = { status: string; date?: string; difficulty?: Difficulty; detail?: unknown };
 type Target = { date: string; difficulty: Difficulty; recent_failures?: number };
-type Draft = { id: string; case_date: string; difficulty: Difficulty; case: GeneratedCase; seed: Seed };
+type Draft = {
+  id: string;
+  status?: CaseStatus;
+  case_date: string;
+  difficulty: Difficulty;
+  case: GeneratedCase;
+  seed: Seed;
+};
 
 async function generateDraft(target: Target, recent: RecentCase[]): Promise<Outcome & { draft?: Draft }> {
   const { date, difficulty } = target;
@@ -92,7 +124,7 @@ async function generateDraft(target: Target, recent: RecentCase[]): Promise<Outc
   const { data: id, error } = await db.rpc('admin_insert_case', {
     p_case_date: date,
     p_difficulty: difficulty,
-    p_status: 'draft',
+    p_status: CaseStatus.draft,
     p_kind: CaseKind.fictional,
     p_title: draft.title,
     p_content: content,
@@ -111,16 +143,16 @@ async function generateDraft(target: Target, recent: RecentCase[]): Promise<Outc
     date,
     difficulty,
     detail: { id, title: draft.title },
-    draft: { id: id as string, case_date: date, difficulty, case: draft, seed },
+    draft: { id: id as string, status: CaseStatus.draft, case_date: date, difficulty, case: draft, seed },
   };
 }
 
-async function verifyDraft(d: Draft): Promise<Outcome> {
+async function verifyDraft(d: Draft): Promise<Outcome & { draft?: Draft }> {
   const draft = d.case;
   if (!draft || !Array.isArray(draft.evidence)) {
-    await db.rpc('admin_finalize_case', { p_id: d.id, p_status: 'rejected', p_meta: { rejected_because: ['draft content missing'] } });
+    await db.rpc('admin_finalize_case', { p_id: d.id, p_status: CaseStatus.rejected, p_meta: { rejected_because: ['draft content missing'] } });
     await log(d.case_date, false, 'solver_rejected', { id: d.id, difficulty: d.difficulty, reasons: ['draft content missing'] });
-    return { status: 'rejected', date: d.case_date, difficulty: d.difficulty, detail: 'draft content missing' };
+    return { status: CaseStatus.rejected, date: d.case_date, difficulty: d.difficulty, detail: 'draft content missing' };
   }
   const client = llm(CONFIG.solverModel(), CONFIG.solverThinking());
   const user = buildSolverUser(draft);
@@ -152,38 +184,124 @@ async function verifyDraft(d: Draft): Promise<Outcome> {
   if (!verdict.ok) {
     const { error } = await db.rpc('admin_finalize_case', {
       p_id: d.id,
-      p_status: 'rejected',
+      p_status: CaseStatus.rejected,
       p_meta: { solver: summary, rejected_because: verdict.reasons },
     });
     if (error) throw new Error(`admin_finalize_case: ${error.message}`);
     await log(d.case_date, false, 'solver_rejected', { id: d.id, difficulty: d.difficulty, reasons: verdict.reasons, runs });
-    return { status: 'rejected', date: d.case_date, difficulty: d.difficulty, detail: verdict.reasons };
+    return { status: CaseStatus.rejected, date: d.case_date, difficulty: d.difficulty, detail: verdict.reasons };
   }
 
   if (verdict.extraEvidence) draft.solution.evidence.push(verdict.extraEvidence);
   const { content, secret } = splitCase(draft);
-  const status = CONFIG.requireReview() ? 'pending' : 'approved';
+  const { error } = await db.rpc('admin_finalize_case', {
+    p_id: d.id,
+    p_status: CaseStatus.verified,
+    p_content: content,
+    p_secret: { ...secret, draft },
+    p_meta: { solver: summary, extra_evidence: verdict.extraEvidence ?? null, solver_model: client.model },
+  });
+  if (error) throw new Error(`admin_finalize_case: ${error.message}`);
+
+  await log(d.case_date, true, 'verified', { id: d.id, difficulty: d.difficulty, title: draft.title });
+  return {
+    status: CaseStatus.verified,
+    date: d.case_date,
+    difficulty: d.difficulty,
+    detail: { id: d.id, title: draft.title },
+    draft: { ...d, status: CaseStatus.verified, case: draft },
+  };
+}
+
+async function reviewDraft(d: Draft, recent: RecentCase[]): Promise<Outcome> {
+  const draft = d.case;
+  const client = llm(CONFIG.editorModel(), CONFIG.editorThinking());
+  const others = recent.filter((r) => r.id !== d.id);
+
+  let review: EditorReview;
+  try {
+    const res = await client.generate<EditorReview>({
+      system: EDITOR_SYSTEM,
+      user: buildEditorUser(draft, d.difficulty, others),
+      name: 'submit_review',
+      description: 'Submits the editorial review of the case.',
+      schema: EDITOR_SCHEMA,
+      maxTokens: CONFIG.editorMaxTokens(),
+      temperature: 0.3,
+    });
+    review = res.data;
+  } catch (e) {
+    const { data: outcome } = await db.rpc('admin_note_draft_failure', { p_id: d.id, p_error: String(e).slice(0, 500) });
+    await log(d.case_date, false, 'editor_error', { id: d.id, difficulty: d.difficulty, error: String(e), outcome });
+    return { status: 'editor_failed', date: d.case_date, difficulty: d.difficulty, detail: String(e) };
+  }
+
+  const verdict = decideEditorial(review, { min: CONFIG.editorMinScore(), reject: CONFIG.editorRejectScore() });
+  let status: CaseStatus = verdict.decision === EditorDecision.approve
+    ? CaseStatus.approved
+    : verdict.decision === EditorDecision.borderline
+    ? BORDERLINE_STATUS[CONFIG.editorBorderline()] ?? CaseStatus.rejected
+    : CaseStatus.rejected;
+  if (status === CaseStatus.approved && CONFIG.requireReview()) status = CaseStatus.pending;
+
+  const { content, secret } = splitCase(draft);
+  const editor = {
+    scores: review?.scores ?? null,
+    issues: review?.issues ?? [],
+    summary: review?.summary ?? null,
+    decision: verdict.decision,
+    reasons: verdict.reasons,
+    model: client.model,
+  };
   const { error } = await db.rpc('admin_finalize_case', {
     p_id: d.id,
     p_status: status,
     p_content: content,
     p_secret: secret,
-    p_meta: { solver: summary, extra_evidence: verdict.extraEvidence ?? null, solver_model: client.model },
+    p_meta: { editor },
   });
   if (error) throw new Error(`admin_finalize_case: ${error.message}`);
 
-  await log(d.case_date, true, 'saved', { id: d.id, difficulty: d.difficulty, title: draft.title, status });
-  return { status, date: d.case_date, difficulty: d.difficulty, detail: { id: d.id, title: draft.title } };
+  const ok = status !== CaseStatus.rejected;
+  await log(d.case_date, ok, ok ? 'saved' : 'editor_rejected', {
+    id: d.id,
+    difficulty: d.difficulty,
+    title: draft.title,
+    status,
+    editor,
+  });
+  return { status, date: d.case_date, difficulty: d.difficulty, detail: { id: d.id, title: draft.title, editor } };
+}
+
+async function rejectExpired(d: Draft): Promise<Outcome> {
+  const reasons = ['case date passed before review finished'];
+  const { error } = await db.rpc('admin_finalize_case', { p_id: d.id, p_status: CaseStatus.rejected, p_meta: { rejected_because: reasons } });
+  if (error) throw new Error(`admin_finalize_case: ${error.message}`);
+  await log(d.case_date, false, 'expired', { id: d.id, difficulty: d.difficulty });
+  return { status: CaseStatus.rejected, date: d.case_date, difficulty: d.difficulty, detail: reasons };
+}
+
+async function advance(d: Draft, recent: RecentCase[], full: boolean): Promise<Outcome> {
+  if (d.status === CaseStatus.verified) return reviewDraft(d, recent);
+  const verified = await verifyDraft(d);
+  if (full && verified.draft) return reviewDraft(verified.draft, recent);
+  const { draft: _draft, ...outcome } = verified;
+  return outcome;
 }
 
 async function tick(options: { target?: Target; full?: boolean }): Promise<Outcome> {
   const { data: plan, error } = await db.rpc('admin_generation_plan', { p_days_ahead: CONFIG.daysAhead() });
   if (error) throw new Error(`admin_generation_plan: ${error.message}`);
 
-  if (!options.target && plan.draft) return verifyDraft(plan.draft as Draft);
-
   const missing: Target[] = plan.missing ?? [];
   const recent: RecentCase[] = plan.recent ?? [];
+
+  if (!options.target && plan.draft) {
+    const d = plan.draft as Draft;
+    if (d.case_date < plan.today) return rejectExpired(d);
+    return advance(d, recent, options.full === true);
+  }
+
   const target = options.target ?? missing.find((m) => (m.recent_failures ?? 0) < 3) ?? missing[0];
   if (!target) return { status: 'buffer_full' };
   if (options.target && !missing.some((m) => m.date === target.date && m.difficulty === target.difficulty)) {
@@ -191,7 +309,7 @@ async function tick(options: { target?: Target; full?: boolean }): Promise<Outco
   }
 
   const generated = await generateDraft({ date: target.date, difficulty: target.difficulty }, recent);
-  if (options.full && generated.draft) return verifyDraft(generated.draft);
+  if (options.full && generated.draft) return advance(generated.draft, recent, true);
   const { draft: _draft, ...outcome } = generated;
   return outcome;
 }

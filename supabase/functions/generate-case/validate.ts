@@ -1,5 +1,13 @@
 import { PROFILES } from './difficulty.ts';
-import type { Difficulty, GeneratedCase, GenEvidence, SolverAnswer } from './types.ts';
+import {
+  type Difficulty,
+  EDITOR_CRITERIA,
+  EditorDecision,
+  type EditorReview,
+  type GeneratedCase,
+  type GenEvidence,
+  type SolverAnswer,
+} from './types.ts';
 
 const ID_RE = /^[a-z][a-z0-9_-]{0,23}$/;
 
@@ -158,4 +166,37 @@ export function evaluateSolverRuns(c: GeneratedCase, runs: SolverAnswer[]): Solv
   }
 
   return { ok: reasons.length === 0, reasons, extraEvidence };
+}
+
+export interface EditorThresholds {
+  min: number;
+  reject: number;
+}
+
+export interface EditorVerdict {
+  decision: EditorDecision;
+  reasons: string[];
+}
+
+export function decideEditorial(review: unknown, thresholds: EditorThresholds): EditorVerdict {
+  const scores = (review as EditorReview | null)?.scores;
+  if (!scores || typeof scores !== 'object') {
+    return { decision: EditorDecision.reject, reasons: ['Editor scores missing.'] };
+  }
+  const missing = EDITOR_CRITERIA.filter((k) => !Number.isInteger(scores[k]) || scores[k] < 1 || scores[k] > 5);
+  if (missing.length) {
+    return { decision: EditorDecision.reject, reasons: [`Invalid editor scores: ${missing.join(', ')}.`] };
+  }
+  if (scores.content <= thresholds.reject) {
+    return { decision: EditorDecision.reject, reasons: [`content scored ${scores.content}.`] };
+  }
+  const low = EDITOR_CRITERIA.filter((k) => scores[k] <= thresholds.reject);
+  if (low.length) {
+    return { decision: EditorDecision.reject, reasons: low.map((k) => `${k} scored ${scores[k]}.`) };
+  }
+  const weak = EDITOR_CRITERIA.filter((k) => scores[k] < thresholds.min);
+  if (weak.length) {
+    return { decision: EditorDecision.borderline, reasons: weak.map((k) => `${k} scored ${scores[k]}.`) };
+  }
+  return { decision: EditorDecision.approve, reasons: [] };
 }

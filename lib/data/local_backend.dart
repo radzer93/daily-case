@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../logic/rules.dart';
 import '../models/case_file.dart';
+import '../models/feedback.dart';
 import '../models/progress.dart';
 import 'game_backend.dart';
 
@@ -58,22 +59,25 @@ class LocalGameBackend implements GameBackend {
   void _writeStore(Map<String, dynamic> store) =>
       unawaited(_prefs.setString(storageKey, jsonEncode(store)));
 
-  ({List<Attempt> attempts, List<String> unlocked}) _state(_Slot s) {
+  ({List<Attempt> attempts, List<String> unlocked, int? rating, String? reason}) _state(_Slot s) {
     final d = _readStore()[_storeKey(s)];
-    if (d is! Map) return (attempts: <Attempt>[], unlocked: <String>[]);
+    if (d is! Map) return (attempts: <Attempt>[], unlocked: <String>[], rating: null, reason: null);
     return (
       attempts: (d['attempts'] as List? ?? const [])
           .map((a) => Attempt.fromJson(Map<String, dynamic>.from(a as Map)))
           .toList(),
       unlocked: List<String>.from(d['unlocked'] as List? ?? const []),
+      rating: (d['rating'] as num?)?.toInt(),
+      reason: d['reason'] as String?,
     );
   }
 
-  void _save(_Slot s, List<Attempt> attempts, List<String> unlocked) {
+  void _save(_Slot s, Map<String, dynamic> fields) {
     final store = _readStore();
+    final current = store[_storeKey(s)];
     store[_storeKey(s)] = {
-      'attempts': attempts.map((a) => a.toJson()).toList(),
-      'unlocked': unlocked,
+      if (current is Map) ...Map<String, dynamic>.from(current),
+      ...fields,
     };
     _writeStore(store);
   }
@@ -96,6 +100,8 @@ class LocalGameBackend implements GameBackend {
       expired: expired,
       score: scaleScore(base, slot.difficulty.multiplier),
       solution: won || expired ? full.solution : null,
+      myRating: s.rating,
+      reported: s.reason != null,
     );
   }
 
@@ -170,7 +176,7 @@ class LocalGameBackend implements GameBackend {
         result: [culprit == sol.culprit, motive == sol.motive, sol.evidence.contains(evidence)],
       ),
     ];
-    _save(slot, attempts, s.unlocked);
+    _save(slot, {'attempts': attempts.map((a) => a.toJson()).toList()});
     return _progress(full, slot);
   }
 
@@ -183,8 +189,34 @@ class LocalGameBackend implements GameBackend {
     }
     final s = _state(slot);
     if (!s.unlocked.contains(evidenceId)) {
-      _save(slot, s.attempts, [...s.unlocked, evidenceId]);
+      _save(slot, {'unlocked': [...s.unlocked, evidenceId]});
     }
+    return _progress(full, slot);
+  }
+
+  @override
+  Future<CaseProgress> submitFeedback(
+    String caseRef, {
+    int? rating,
+    FeedbackReason? reason,
+    String? comment,
+  }) async {
+    final slot = _slotOf(caseRef);
+    if (slot.day > _today) throw const BackendException('Nie znaleziono sprawy.');
+    final invalidRating = rating != null && (rating < minRating || rating > maxRating);
+    if ((rating == null && reason == null) || invalidRating) {
+      throw const BackendException('Nieprawidłowy wybór. Odśwież sprawę i spróbuj ponownie.');
+    }
+    final full = await _full(slot);
+    final current = _progress(full, slot);
+    if (!current.done || current.attempts.isEmpty) {
+      throw const BackendException('Ocenić można tylko sprawę, którą prowadziłeś do końca.');
+    }
+    _save(slot, {
+      if (rating != null) 'rating': rating,
+      if (reason != null) 'reason': reason.wire,
+      if (comment != null) 'comment': comment.length > maxFeedbackComment ? comment.substring(0, maxFeedbackComment) : comment,
+    });
     return _progress(full, slot);
   }
 

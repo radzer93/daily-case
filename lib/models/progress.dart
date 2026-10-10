@@ -37,6 +37,8 @@ class CaseProgress {
     this.expired = false,
     this.score = 0,
     this.solution,
+    this.myRating,
+    this.reported = false,
   });
 
   static const empty = CaseProgress();
@@ -48,6 +50,8 @@ class CaseProgress {
   final bool expired;
   final int score;
   final Solution? solution;
+  final int? myRating;
+  final bool reported;
 
   int get attemptsLeft => maxAttempts - attempts.length;
 
@@ -68,6 +72,8 @@ class CaseProgress {
         solution: j['solution'] == null
             ? null
             : Solution.fromJson(Map<String, dynamic>.from(j['solution'] as Map)),
+        myRating: (j['my_rating'] as num?)?.toInt(),
+        reported: j['reported'] as bool? ?? false,
       );
 }
 

@@ -8,3 +8,6 @@ enable_anonymous_sign_ins = true
 
 [functions.generate-case]
 verify_jwt = false
+
+[functions.quality-alert]
+verify_jwt = false

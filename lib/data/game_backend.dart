@@ -1,4 +1,5 @@
 import '../models/case_file.dart';
+import '../models/feedback.dart';
 import '../models/progress.dart';
 
 class BackendException implements Exception {
@@ -80,6 +81,13 @@ abstract class GameBackend {
   });
 
   Future<CaseProgress> unlockHint(String caseRef, String evidenceId);
+
+  Future<CaseProgress> submitFeedback(
+    String caseRef, {
+    int? rating,
+    FeedbackReason? reason,
+    String? comment,
+  });
 
   Future<Stats> stats();
 

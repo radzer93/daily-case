@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:daily_case/data/game_backend.dart';
 import 'package:daily_case/data/local_backend.dart';
 import 'package:daily_case/models/case_file.dart';
+import 'package:daily_case/models/feedback.dart';
 import 'package:daily_case/state/game_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -223,5 +224,54 @@ void main() {
     g.toggleExcluded(id);
     expect(g.isExcluded(id), isTrue);
     expect((await loaded()).isExcluded(id), isTrue);
+  });
+
+  group('feedback', () {
+    test('rating is only possible after the case is finished', () async {
+      final g = await loaded();
+      expect(g.canGiveFeedback, isFalse);
+      expect(await g.rateCase(5), isNull);
+      expect(g.progress.myRating, isNull);
+
+      final s = fullFor(g).solution!;
+      await g.accuse(culprit: s.culprit, motive: s.motive, evidence: s.evidence.first);
+      expect(g.canGiveFeedback, isTrue);
+      expect(await g.rateCase(4), isNull);
+      expect(g.progress.myRating, 4);
+      expect(g.progress.won, isTrue);
+
+      expect(await g.reportCase(FeedbackReason.contradiction), isNull);
+      expect(g.progress.reported, isTrue);
+      expect(g.progress.myRating, 4);
+
+      final again = await loaded();
+      expect(again.progress.myRating, 4);
+      expect(again.progress.reported, isTrue);
+      expect(again.progress.attempts.length, 1);
+    });
+
+    test('backend rejects feedback for an unfinished case', () async {
+      final b = backend();
+      final t = await b.today(Difficulty.easy);
+      expect(() => b.submitFeedback(t.caseFile!.id, rating: 5), throwsA(isA<BackendException>()));
+    });
+
+    test('archived cases can be rated only after playing them', () async {
+      final first = await loaded();
+      final sol = fullFor(first).solution!;
+      final wrong = first.current.suspects.firstWhere((s) => s.id != sol.culprit).id;
+      await first.accuse(culprit: wrong, motive: sol.motive, evidence: sol.evidence.first);
+
+      now = DateTime(2026, 10, 8, 9);
+      final g = await loaded();
+      expect(await g.openArchive(LocalGameBackend.refFor(1, Difficulty.medium)), isNull);
+      expect(g.canGiveFeedback, isFalse);
+      g.openDaily();
+      expect(await g.openArchive(LocalGameBackend.refFor(1, Difficulty.easy)), isNull);
+      expect(g.canGiveFeedback, isTrue);
+      expect(await g.rateCase(2), isNull);
+      expect(g.progress.myRating, 2);
+      expect(g.isDaily, isFalse);
+    });
   });
 }
