@@ -1,4 +1,4 @@
-import { type LlmClient, RETRYABLE_STATUS, sleep, type StructuredRequest, type StructuredResponse } from './llm.ts';
+import { type LlmClient, quotaError, RETRYABLE_STATUS, sleep, type StructuredRequest, type StructuredResponse } from './llm.ts';
 
 export function anthropicClient(apiKey: string, model: string): LlmClient {
   return {
@@ -31,6 +31,8 @@ export function anthropicClient(apiKey: string, model: string): LlmClient {
 
         if (!res.ok) {
           lastError = `Anthropic API ${res.status}: ${(await res.text()).slice(0, 500)}`;
+          const quota = quotaError(res.status, lastError);
+          if (quota) throw quota;
           if (RETRYABLE_STATUS.has(res.status)) continue;
           throw new Error(lastError);
         }

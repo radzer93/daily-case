@@ -3,6 +3,7 @@ import { EXAMPLE_CASE } from './example_case.ts';
 import { LOCALES, pickSeed, SETTINGS } from './seeds.ts';
 import { EditorDecision, type EditorScores, type GeneratedCase, type SolverAnswer } from './types.ts';
 import { decideEditorial, evaluateSolverRuns, splitCase, validateCase } from './validate.ts';
+import { parseRetryDelayMs, QuotaExceededError, quotaError } from './llm.ts';
 
 const base = (): GeneratedCase => structuredClone(EXAMPLE_CASE) as GeneratedCase;
 
@@ -140,4 +141,19 @@ Deno.test('editor: missing or invalid scores reject', () => {
   assertEquals(decideEditorial(null, THRESHOLDS).decision, EditorDecision.reject);
   const bad = { ...scores(), fairness: 7 };
   assertEquals(decideEditorial({ scores: bad, issues: [], summary: '' }, THRESHOLDS).decision, EditorDecision.reject);
+});
+
+Deno.test('quota: daily limit stops retries until the reset', () => {
+  const now = new Date('2026-10-12T08:00:00Z');
+  const text = 'Gemini API 429: {"error":{"message":"Rate limit exceeded for model gemini-3.8-flash (limit: 20 requests per day on Free Tier). Please retry in 15h24m28s"}}';
+  assertEquals(parseRetryDelayMs(text), (15 * 3600 + 24 * 60 + 28) * 1000);
+  const e = quotaError(429, text, now);
+  assert(e instanceof QuotaExceededError);
+  assertEquals(e.retryAt.toISOString(), '2026-10-12T23:24:28.000Z');
+});
+
+Deno.test('quota: short rate limits and other errors are retried', () => {
+  assertEquals(quotaError(429, 'Too many requests, retry in 20s'), null);
+  assertEquals(quotaError(429, '{"retryDelay": "30s"}'), null);
+  assertEquals(quotaError(503, 'per day'), null);
 });

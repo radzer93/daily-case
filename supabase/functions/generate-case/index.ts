@@ -1,7 +1,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { anthropicClient } from './anthropic.ts';
 import { geminiClient } from './gemini.ts';
-import { type LlmClient, sleep } from './llm.ts';
+import { type LlmClient, QuotaExceededError, sleep } from './llm.ts';
 import {
   buildEditorUser,
   buildGeneratorUser,
@@ -82,6 +82,18 @@ async function log(caseDate: string | null, ok: boolean, stage: string, detail: 
 }
 
 type Outcome = { status: string; date?: string; difficulty?: Difficulty; detail?: unknown };
+
+async function quotaOutcome(
+  e: QuotaExceededError,
+  model: string,
+  date: string,
+  difficulty: Difficulty,
+  stage: string,
+): Promise<Outcome> {
+  const retryAt = e.retryAt.toISOString();
+  await log(date, false, 'quota', { difficulty, stage, model, retry_at: retryAt, error: e.message });
+  return { status: 'quota_exceeded', date, difficulty, detail: { stage, model, retry_at: retryAt } };
+}
 type Target = { date: string; difficulty: Difficulty; recent_failures?: number };
 type Draft = {
   id: string;
@@ -109,6 +121,7 @@ async function generateDraft(target: Target, recent: RecentCase[]): Promise<Outc
       temperature: 1,
     });
   } catch (e) {
+    if (e instanceof QuotaExceededError) return quotaOutcome(e, client.model, date, difficulty, 'generation');
     await log(date, false, 'generation', { difficulty, seed, error: String(e) });
     return { status: 'generation_failed', date, difficulty, detail: String(e) };
   }
@@ -173,6 +186,7 @@ async function verifyDraft(d: Draft): Promise<Outcome & { draft?: Draft }> {
       runs.push(res.data);
     }
   } catch (e) {
+    if (e instanceof QuotaExceededError) return quotaOutcome(e, client.model, d.case_date, d.difficulty, 'solver');
     const { data: outcome } = await db.rpc('admin_note_draft_failure', { p_id: d.id, p_error: String(e).slice(0, 500) });
     await log(d.case_date, false, 'solver_error', { id: d.id, difficulty: d.difficulty, error: String(e), outcome });
     return { status: 'solver_failed', date: d.case_date, difficulty: d.difficulty, detail: String(e) };
@@ -231,6 +245,7 @@ async function reviewDraft(d: Draft, recent: RecentCase[]): Promise<Outcome> {
     });
     review = res.data;
   } catch (e) {
+    if (e instanceof QuotaExceededError) return quotaOutcome(e, client.model, d.case_date, d.difficulty, 'editor');
     const { data: outcome } = await db.rpc('admin_note_draft_failure', { p_id: d.id, p_error: String(e).slice(0, 500) });
     await log(d.case_date, false, 'editor_error', { id: d.id, difficulty: d.difficulty, error: String(e), outcome });
     return { status: 'editor_failed', date: d.case_date, difficulty: d.difficulty, detail: String(e) };
@@ -295,12 +310,22 @@ async function tick(options: { target?: Target; full?: boolean }): Promise<Outco
 
   const missing: Target[] = plan.missing ?? [];
   const recent: RecentCase[] = plan.recent ?? [];
+  const pending = options.target ? undefined : (plan.draft as Draft | null) ?? undefined;
 
-  if (!options.target && plan.draft) {
-    const d = plan.draft as Draft;
-    if (d.case_date < plan.today) return rejectExpired(d);
-    return advance(d, recent, options.full === true);
+  if (pending && pending.case_date < plan.today) return rejectExpired(pending);
+
+  const nextModel = !pending
+    ? CONFIG.model()
+    : pending.status === CaseStatus.verified
+    ? CONFIG.editorModel()
+    : CONFIG.solverModel();
+  const { data: quotaUntil, error: quotaError } = await db.rpc('admin_quota_until', { p_model: nextModel });
+  if (quotaError) throw new Error(`admin_quota_until: ${quotaError.message}`);
+  if (quotaUntil && new Date(quotaUntil as string).getTime() > Date.now()) {
+    return { status: 'quota_wait', detail: { model: nextModel, retry_at: quotaUntil } };
   }
+
+  if (pending) return advance(pending, recent, options.full === true);
 
   const target = options.target ?? missing.find((m) => (m.recent_failures ?? 0) < 3) ?? missing[0];
   if (!target) return { status: 'buffer_full' };
