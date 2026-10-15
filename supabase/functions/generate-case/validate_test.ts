@@ -149,7 +149,14 @@ Deno.test('quota: daily limit stops retries until the reset', () => {
   assertEquals(parseRetryDelayMs(text), (15 * 3600 + 24 * 60 + 28) * 1000);
   const e = quotaError(429, text, now);
   assert(e instanceof QuotaExceededError);
-  assertEquals(e.retryAt.toISOString(), '2026-10-12T23:24:28.000Z');
+  assertEquals(e.retryAt.toISOString(), '2026-10-12T11:00:00.000Z');
+});
+
+Deno.test('quota: project quota without a delay waits one hour', () => {
+  const now = new Date('2026-10-14T01:00:00Z');
+  const e = quotaError(429, '{"error":{"message":"Your project has exceeded a quota. See https://ai.dev/rate-limit"}}', now);
+  assert(e instanceof QuotaExceededError);
+  assertEquals(e.retryAt.toISOString(), '2026-10-14T02:00:00.000Z');
 });
 
 Deno.test('quota: short rate limits and other errors are retried', () => {

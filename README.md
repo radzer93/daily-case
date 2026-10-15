@@ -187,7 +187,7 @@ select cron.unschedule('daily-case-generate');
 | `GEN_MAX_TOKENS` | `24000` / `8000` | output limit for the case; raise it if responses are cut off |
 | `SOLVER_MAX_TOKENS` | `8000` / `1500` | output limit for one solver run |
 
-**Free-tier quota.** Each case costs 2 + `SOLVER_RUNS` model calls (generation, solver runs, editor), and rejected cases cost the same again. With a daily limit of about 20 requests per model, use `SOLVER_RUNS=1` and, if possible, point `SOLVER_MODEL` and `EDITOR_MODEL` at another model with its own quota. When the provider reports an exhausted daily quota, the generator logs a `quota` entry with the reset time and skips runs until then, without counting it as a failure of the draft.
+**Free-tier quota.** Each case costs 2 + `SOLVER_RUNS` model calls (generation, solver runs, editor), and rejected cases cost the same again. With a daily limit of about 20 requests per model, use `SOLVER_RUNS=1` and, if possible, point `SOLVER_MODEL` and `EDITOR_MODEL` at another model with its own quota. When the provider reports an exhausted daily quota, the generator logs a `quota` entry and skips runs until the reset time, checking again at least every 3 hours, without counting it as a failure of the draft.
 
 Model names and free-tier quotas change; check the current list and your quota in Google AI Studio. Free-tier prompts may be used by Google to improve its products, which is acceptable here because only seeds and fictional cases are sent.
 
