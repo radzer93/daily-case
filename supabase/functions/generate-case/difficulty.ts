@@ -6,6 +6,7 @@ export interface DifficultyProfile {
   falseLeads: string;
   mechanism: string;
   hints: string;
+  rules: string[];
 }
 
 export const PROFILES: Record<Difficulty, DifficultyProfile> = {
@@ -15,6 +16,7 @@ export const PROFILES: Record<Difficulty, DifficultyProfile> = {
     falseLeads: 'at most one false lead',
     mechanism: 'one clear deduction mechanism; an attentive reader solves the case in a few minutes',
     hints: 'the two hints strongly confirm the solution',
+    rules: [],
   },
   medium: {
     suspects: 4,
@@ -22,6 +24,9 @@ export const PROFILES: Record<Difficulty, DifficultyProfile> = {
     falseLeads: 'one or two false leads',
     mechanism: 'one deduction mechanism hidden among ordinary-looking details',
     hints: 'the two hints confirm the solution',
+    rules: [
+      'No public record places the culprit at the scene during the crime; their presence must be inferred.',
+    ],
   },
   hard: {
     suspects: 4,
@@ -29,6 +34,13 @@ export const PROFILES: Record<Difficulty, DifficultyProfile> = {
     falseLeads: 'two or three convincing false leads',
     mechanism: 'two deduction mechanisms that must be combined; neither of them alone identifies the culprit',
     hints: 'the two hints narrow the field but do not name the culprit',
+    rules: [
+      'No public record places the culprit at the scene during the crime, and no single item links them to it; only a combination of at least two items does.',
+      'The culprit has an alibi or explanation that looks solid on first reading and collapses only when two separate items are combined.',
+      'No innocent suspect is cleared by a single log entry; each is cleared by combining a statement with evidence or two pieces of evidence.',
+      'At least two innocent suspects look more suspicious than the culprit on first reading (motive, lie about something unrelated, presence nearby).',
+      'If a case could be solved by matching one timestamp or one log line, it is not hard: rework it.',
+    ],
   },
 };
 

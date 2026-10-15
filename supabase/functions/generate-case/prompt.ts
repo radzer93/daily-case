@@ -19,6 +19,9 @@ FAIR PLAY RULES (most important; a case that breaks them is rejected):
 7. Hints. Exactly 2 pieces of evidence have hint=true.
 8. Every suspect has a motive or suspicious behaviour, so the choice is not obvious.
 9. Consistency. Times, distances, dates and period details must agree. Check the timeline before answering.
+10. Plausibility. Travel times and speeds are realistic for the vehicle and road. Geography, geology, climate and jurisdiction match the real place (no mine where there is no coal, no police force acting outside its territory). If something cuts the place off (storm, flood), nobody arrives from outside without an explanation.
+11. Period accuracy. Units, titles, offices, legal concepts, trades and their vocabulary belong to the place and era: no metric units in 1920s America, no forensic examiner or bankruptcy trustee in Edo Japan, no brewers' guild where beer was not brewed.
+12. Poison and delayed mechanisms. If the crime could have been prepared earlier (poison in a bottle, tampered device), alibis must cover the whole window in which it could have been prepared, not only the moment of death.
 
 CONTENT LIMITS (always, at every intensity):
 - No sexual violence and no sexual content.
@@ -37,7 +40,7 @@ FORMAT:
 - evidence text: 1–3 factual sentences in the style of an official record, with concrete times and numbers.
 - explain: 3 paragraphs: (1) how the public evidence points to the culprit, (2) what excludes the others, (3) the motive.
 
-STYLE: plain, concise Polish with the feel of police files.`;
+STYLE: plain, concise Polish with the feel of police files. Invented names of places and businesses keep one grammatical gender and are declined correctly every time (e.g. "Pod Złotą Kotwicą"). Use technical terms of a trade only when sure of their meaning.`;
 
 export function buildGeneratorUser(seed: Seed, recent: RecentCase[]): string {
   const p = PROFILES[seed.difficulty];
@@ -64,6 +67,7 @@ DIFFICULTY: ${seed.difficulty.toUpperCase()}
 - False leads: ${p.falseLeads}.
 - Deduction: ${p.mechanism}.
 - Hints: ${p.hints}.
+${p.rules.map((r) => `- ${r}`).join('\n')}
 
 INTENSITY: ${INTENSITY_RULES[seed.intensity]}
 
@@ -76,7 +80,9 @@ ${JSON.stringify(EXAMPLE_CASE)}
 Before answering, check that:
 - every innocent suspect is excluded by public evidence or a statement,
 - the culprit and motive can be identified without hints,
-- the timeline is consistent.`;
+- the timeline is consistent and travel times are realistic,
+- places, institutions, units and trade terms fit the place and era,
+- the case really matches the DIFFICULTY rules above.`;
 }
 
 const str = (description: string) => ({ type: 'string', description });

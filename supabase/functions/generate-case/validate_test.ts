@@ -1,6 +1,7 @@
 import { assert, assertEquals } from 'jsr:@std/assert@1';
 import { EXAMPLE_CASE } from './example_case.ts';
 import { LOCALES, pickSeed, SETTINGS } from './seeds.ts';
+import { buildGeneratorUser } from './prompt.ts';
 import { EditorDecision, type EditorScores, type GeneratedCase, type SolverAnswer } from './types.ts';
 import { decideEditorial, evaluateSolverRuns, splitCase, validateCase } from './validate.ts';
 import { parseRetryDelayMs, QuotaExceededError, quotaError } from './llm.ts';
@@ -163,4 +164,11 @@ Deno.test('quota: short rate limits and other errors are retried', () => {
   assertEquals(quotaError(429, 'Too many requests, retry in 20s'), null);
   assertEquals(quotaError(429, '{"retryDelay": "30s"}'), null);
   assertEquals(quotaError(503, 'per day'), null);
+});
+
+Deno.test('hard prompt forbids single-log solutions', () => {
+  const hard = buildGeneratorUser(pickSeed([], { difficulty: 'hard' }), []);
+  assert(hard.includes('only a combination of at least two items'));
+  const easy = buildGeneratorUser(pickSeed([], { difficulty: 'easy' }), []);
+  assert(!easy.includes('only a combination of at least two items'));
 });
