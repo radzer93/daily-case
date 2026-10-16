@@ -178,6 +178,18 @@ export interface EditorVerdict {
   reasons: string[];
 }
 
+const DOWNGRADE: Partial<Record<Difficulty, Difficulty>> = { hard: 'medium' };
+
+export function downgradeTarget(difficulty: Difficulty, review: unknown, thresholds: EditorThresholds): Difficulty | null {
+  const lower = DOWNGRADE[difficulty];
+  const scores = (review as EditorReview | null)?.scores;
+  if (!lower || !scores || typeof scores !== 'object') return null;
+  const valid = EDITOR_CRITERIA.every((k) => Number.isInteger(scores[k]) && scores[k] >= 1 && scores[k] <= 5);
+  if (!valid || scores.difficulty_fit >= thresholds.min) return null;
+  const othersOk = EDITOR_CRITERIA.filter((k) => k !== 'difficulty_fit').every((k) => scores[k] >= thresholds.min);
+  return othersOk ? lower : null;
+}
+
 export function decideEditorial(review: unknown, thresholds: EditorThresholds): EditorVerdict {
   const scores = (review as EditorReview | null)?.scores;
   if (!scores || typeof scores !== 'object') {

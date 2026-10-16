@@ -3,7 +3,7 @@ import { EXAMPLE_CASE } from './example_case.ts';
 import { LOCALES, pickSeed, SETTINGS } from './seeds.ts';
 import { buildGeneratorUser } from './prompt.ts';
 import { EditorDecision, type EditorScores, type GeneratedCase, type SolverAnswer } from './types.ts';
-import { decideEditorial, evaluateSolverRuns, splitCase, validateCase } from './validate.ts';
+import { decideEditorial, downgradeTarget, evaluateSolverRuns, splitCase, validateCase } from './validate.ts';
 import { parseRetryDelayMs, QuotaExceededError, quotaError } from './llm.ts';
 
 const base = (): GeneratedCase => structuredClone(EXAMPLE_CASE) as GeneratedCase;
@@ -171,4 +171,14 @@ Deno.test('hard prompt forbids single-log solutions', () => {
   assert(hard.includes('only a combination of at least two items'));
   const easy = buildGeneratorUser(pickSeed([], { difficulty: 'easy' }), []);
   assert(!easy.includes('only a combination of at least two items'));
+});
+
+Deno.test('editor: a good hard case that is too easy moves to medium', () => {
+  const review = (o: Partial<EditorScores>) => ({ scores: scores(o), issues: [], summary: '' });
+  assertEquals(downgradeTarget('hard', review({ difficulty_fit: 3 }), THRESHOLDS), 'medium');
+  assertEquals(downgradeTarget('hard', review({ difficulty_fit: 2 }), THRESHOLDS), 'medium');
+  assertEquals(downgradeTarget('hard', review({ difficulty_fit: 3, logic: 3 }), THRESHOLDS), null);
+  assertEquals(downgradeTarget('hard', review({}), THRESHOLDS), null);
+  assertEquals(downgradeTarget('medium', review({ difficulty_fit: 2 }), THRESHOLDS), null);
+  assertEquals(downgradeTarget('hard', null, THRESHOLDS), null);
 });

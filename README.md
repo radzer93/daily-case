@@ -100,6 +100,8 @@ Statuses: `draft` → `verified` (solver agreed) → `approved` | `rejected` (ed
 - all scores ≥ `EDITOR_MIN_SCORE` (default 4) → approved,
 - anything in between is borderline and follows `EDITOR_BORDERLINE`: `reject` (default), `pending` or `approve`. Keep `reject` if nobody reviews cases: a `pending` case would leave the day empty.
 
+A hard case that scores at least `EDITOR_MIN_SCORE` on everything except `difficulty_fit` is not rejected: it moves to the earliest free medium slot in the buffer (`meta.moved_from`, `meta.editor.downgraded_from`), which saves the model calls of a new case.
+
 Scores, issues and the decision are stored in `meta.editor`. A rejected slot is regenerated on a later run.
 
 **Player feedback.** After playing a case to the end (won, three misses or expired after at least one accusation) players can rate it with 1–5 stars and report a problem (`unfair`, `contradiction`, `language`, `inappropriate`, `other`). Stored in `private.case_feedback`.

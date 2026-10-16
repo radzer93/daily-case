@@ -26,7 +26,7 @@ import {
   type Seed,
   type SolverAnswer,
 } from './types.ts';
-import { decideEditorial, evaluateSolverRuns, splitCase, validateCase } from './validate.ts';
+import { decideEditorial, downgradeTarget, evaluateSolverRuns, splitCase, validateCase } from './validate.ts';
 
 const env = (name: string, fallback?: string): string => {
   const v = Deno.env.get(name) ?? fallback;
@@ -227,7 +227,7 @@ async function verifyDraft(d: Draft): Promise<Outcome & { draft?: Draft }> {
   };
 }
 
-async function reviewDraft(d: Draft, recent: RecentCase[]): Promise<Outcome> {
+async function reviewDraft(d: Draft, recent: RecentCase[], missing: Target[]): Promise<Outcome> {
   const draft = d.case;
   const client = llm(CONFIG.editorModel(), CONFIG.editorThinking());
   const others = recent.filter((r) => r.id !== d.id);
@@ -251,12 +251,32 @@ async function reviewDraft(d: Draft, recent: RecentCase[]): Promise<Outcome> {
     return { status: 'editor_failed', date: d.case_date, difficulty: d.difficulty, detail: String(e) };
   }
 
-  const verdict = decideEditorial(review, { min: CONFIG.editorMinScore(), reject: CONFIG.editorRejectScore() });
+  const thresholds = { min: CONFIG.editorMinScore(), reject: CONFIG.editorRejectScore() };
+  const verdict = decideEditorial(review, thresholds);
   let status: CaseStatus = verdict.decision === EditorDecision.approve
     ? CaseStatus.approved
     : verdict.decision === EditorDecision.borderline
     ? BORDERLINE_STATUS[CONFIG.editorBorderline()] ?? CaseStatus.rejected
     : CaseStatus.rejected;
+
+  let slot = { date: d.case_date, difficulty: d.difficulty };
+  let downgradedFrom: typeof slot | null = null;
+  const lower = status === CaseStatus.approved ? null : downgradeTarget(d.difficulty, review, thresholds);
+  const free = lower ? missing.find((m) => m.difficulty === lower) : undefined;
+  if (free) {
+    const { error: moveError } = await db.rpc('admin_move_case', {
+      p_id: d.id,
+      p_case_date: free.date,
+      p_difficulty: free.difficulty,
+    });
+    if (moveError) {
+      await log(d.case_date, false, 'downgrade_failed', { id: d.id, difficulty: d.difficulty, error: moveError.message });
+    } else {
+      downgradedFrom = slot;
+      slot = { date: free.date, difficulty: free.difficulty };
+      status = CaseStatus.approved;
+    }
+  }
   if (status === CaseStatus.approved && CONFIG.requireReview()) status = CaseStatus.pending;
 
   const { content, secret } = splitCase(draft);
@@ -267,6 +287,7 @@ async function reviewDraft(d: Draft, recent: RecentCase[]): Promise<Outcome> {
     decision: verdict.decision,
     reasons: verdict.reasons,
     model: client.model,
+    downgraded_from: downgradedFrom,
   };
   const { error } = await db.rpc('admin_finalize_case', {
     p_id: d.id,
@@ -278,14 +299,14 @@ async function reviewDraft(d: Draft, recent: RecentCase[]): Promise<Outcome> {
   if (error) throw new Error(`admin_finalize_case: ${error.message}`);
 
   const ok = status !== CaseStatus.rejected;
-  await log(d.case_date, ok, ok ? 'saved' : 'editor_rejected', {
+  await log(slot.date, ok, ok ? 'saved' : 'editor_rejected', {
     id: d.id,
-    difficulty: d.difficulty,
+    difficulty: slot.difficulty,
     title: draft.title,
     status,
     editor,
   });
-  return { status, date: d.case_date, difficulty: d.difficulty, detail: { id: d.id, title: draft.title, editor } };
+  return { status, date: slot.date, difficulty: slot.difficulty, detail: { id: d.id, title: draft.title, editor } };
 }
 
 async function rejectExpired(d: Draft): Promise<Outcome> {
@@ -296,10 +317,10 @@ async function rejectExpired(d: Draft): Promise<Outcome> {
   return { status: CaseStatus.rejected, date: d.case_date, difficulty: d.difficulty, detail: reasons };
 }
 
-async function advance(d: Draft, recent: RecentCase[], full: boolean): Promise<Outcome> {
-  if (d.status === CaseStatus.verified) return reviewDraft(d, recent);
+async function advance(d: Draft, recent: RecentCase[], missing: Target[], full: boolean): Promise<Outcome> {
+  if (d.status === CaseStatus.verified) return reviewDraft(d, recent, missing);
   const verified = await verifyDraft(d);
-  if (full && verified.draft) return reviewDraft(verified.draft, recent);
+  if (full && verified.draft) return reviewDraft(verified.draft, recent, missing);
   const { draft: _draft, ...outcome } = verified;
   return outcome;
 }
@@ -325,7 +346,7 @@ async function tick(options: { target?: Target; full?: boolean }): Promise<Outco
     return { status: 'quota_wait', detail: { model: nextModel, retry_at: quotaUntil } };
   }
 
-  if (pending) return advance(pending, recent, options.full === true);
+  if (pending) return advance(pending, recent, missing, options.full === true);
 
   const target = options.target ?? missing.find((m) => (m.recent_failures ?? 0) < 3) ?? missing[0];
   if (!target) return { status: 'buffer_full' };
@@ -334,7 +355,7 @@ async function tick(options: { target?: Target; full?: boolean }): Promise<Outco
   }
 
   const generated = await generateDraft({ date: target.date, difficulty: target.difficulty }, recent);
-  if (options.full && generated.draft) return advance(generated.draft, recent, true);
+  if (options.full && generated.draft) return advance(generated.draft, recent, missing, true);
   const { draft: _draft, ...outcome } = generated;
   return outcome;
 }
