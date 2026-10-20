@@ -3,6 +3,7 @@ export const AlertFlag = {
   manyReports: 'many_reports',
   lowRating: 'low_rating',
   missingCase: 'missing_case',
+  missingTomorrow: 'missing_tomorrow',
 } as const;
 export type AlertFlag = (typeof AlertFlag)[keyof typeof AlertFlag];
 
@@ -34,16 +35,24 @@ const FLAG_TEXT: Record<AlertFlag, string> = {
   [AlertFlag.inappropriate]: 'Reported as inappropriate content',
   [AlertFlag.manyReports]: 'Many player reports',
   [AlertFlag.lowRating]: 'Low player rating',
-  [AlertFlag.missingCase]: 'No published case',
+  [AlertFlag.missingCase]: 'No published case today',
+  [AlertFlag.missingTomorrow]: 'No case ready for tomorrow',
 };
+
+const SLOT_FLAGS: AlertFlag[] = [AlertFlag.missingCase, AlertFlag.missingTomorrow];
 
 const URGENT: AlertFlag[] = [AlertFlag.inappropriate, AlertFlag.missingCase];
 
 const escape = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-function describeMissing(d: QualityAlert['detail'], now: Date): string {
-  const parts = ['Players see no case for this level.'];
+function describeMissing(a: QualityAlert, now: Date): string {
+  const d = a.detail ?? {};
+  const parts = [
+    a.flag === AlertFlag.missingCase
+      ? 'Players see no case for this level.'
+      : 'Players will see no case at midnight unless the generator finishes it overnight.',
+  ];
   const sinceRun = hoursSince(d.last_run, now);
   const quota = (d.recent_log ?? [])[0]?.stage === QUOTA_STAGE;
   if (quota) {
@@ -64,7 +73,7 @@ function describeMissing(d: QualityAlert['detail'], now: Date): string {
 
 function describe(a: QualityAlert, now: Date): string {
   const d = a.detail ?? {};
-  if (a.flag === AlertFlag.missingCase) return describeMissing(d, now);
+  if (SLOT_FLAGS.includes(a.flag)) return describeMissing(a, now);
   const reports = Object.entries(d.reports ?? {}).map(([k, n]) => `${k} ×${n}`).join(', ');
   return `Reports: ${reports || 'none'}. Ratings: ${d.ratings ?? 0}, average ${d.avg_rating ?? '-'}.`;
 }
@@ -85,7 +94,7 @@ export function buildAlertEmail(
 
   const text = [
     ...alerts.map((a) =>
-      [headline(a), describe(a, now), a.flag === AlertFlag.missingCase ? '' : `Kill switch: ${killSwitch(a)}`]
+      [headline(a), describe(a, now), SLOT_FLAGS.includes(a.flag) ? '' : `Kill switch: ${killSwitch(a)}`]
         .filter(Boolean)
         .join('\n')
     ),
@@ -96,7 +105,7 @@ export function buildAlertEmail(
 ${alerts
   .map(
     (a) => `<p><strong>${escape(headline(a))}</strong><br>${escape(describe(a, now))}${
-      a.flag === AlertFlag.missingCase ? '' : `<br><code style="font-size:12px">${escape(killSwitch(a))}</code>`
+      SLOT_FLAGS.includes(a.flag) ? '' : `<br><code style="font-size:12px">${escape(killSwitch(a))}</code>`
     }</p>`
   )
   .join('\n')}

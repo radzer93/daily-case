@@ -71,3 +71,17 @@ Deno.test('missing case explains an exhausted quota', () => {
   assert(e.text.includes('quota is exhausted'));
   assert(!e.text.includes('check the cron job'));
 });
+
+Deno.test('a missing case for tomorrow is not urgent', () => {
+  const e = buildAlertEmail([{
+    key: 'slot:2026-10-21:hard:missing_tomorrow',
+    flag: AlertFlag.missingTomorrow,
+    date: '2026-10-21',
+    difficulty: 'hard',
+    title: null,
+    detail: { last_run: '2026-10-20T15:00:00Z', recent_log: [] },
+  }], new Date('2026-10-20T16:05:00Z'));
+  assert(!e.subject.startsWith('[URGENT]'));
+  assert(e.text.includes('No case ready for tomorrow'));
+  assert(!e.text.includes('Kill switch'));
+});
