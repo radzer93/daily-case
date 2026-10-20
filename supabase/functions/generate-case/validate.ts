@@ -94,6 +94,43 @@ export function validateCase(input: unknown, difficulty: Difficulty): string[] {
     if (!strArray(sol.explain, 2, 4, 900)) errors.push('solution.explain: 2–4 paragraphs required.');
   }
 
+  const isRef = (r: unknown) => typeof r === 'string' && (openIds.has(r) || suspectIds.includes(r));
+  const steps = Array.isArray(c.deduction) ? c.deduction : [];
+  if (steps.length < profile.minSteps) {
+    errors.push(`deduction: at least ${profile.minSteps} steps required for ${difficulty}, found ${steps.length}.`);
+  }
+  for (const [i, step] of steps.entries()) {
+    const uses = Array.isArray(step?.uses) ? step.uses : [];
+    if (uses.length === 0 || !uses.every(isRef)) {
+      errors.push(`deduction[${i + 1}]: must use only public evidence ids or suspect ids.`);
+    }
+    if (!isStr(step?.conclusion, 400)) errors.push(`deduction[${i + 1}]: conclusion missing.`);
+  }
+  const combined = steps.filter((s) => Array.isArray(s?.uses) && new Set(s.uses).size >= 2).length;
+  if (combined < profile.minCombinedSteps) {
+    errors.push(`deduction: at least ${profile.minCombinedSteps} steps must combine two or more items for ${difficulty}.`);
+  }
+
+  const leads = Array.isArray(c.false_leads) ? c.false_leads : [];
+  const leadSuspects = new Set<string>();
+  for (const lead of leads) {
+    const id = lead?.suspect_id;
+    if (!suspectIds.includes(id) || id === sol?.culprit) {
+      errors.push(`false_leads: "${id}" is not an innocent suspect.`);
+      continue;
+    }
+    const points = Array.isArray(lead.points_to_them) ? lead.points_to_them : [];
+    const cleared = Array.isArray(lead.cleared_by) ? lead.cleared_by : [];
+    if (points.length === 0 || !points.every(isRef) || cleared.length === 0 || !cleared.every(isRef)) {
+      errors.push(`false_leads[${id}]: must point to public evidence or statements.`);
+      continue;
+    }
+    leadSuspects.add(id);
+  }
+  if (leadSuspects.size < profile.minFalseLeads) {
+    errors.push(`false_leads: at least ${profile.minFalseLeads} innocent suspects required for ${difficulty}, found ${leadSuspects.size}.`);
+  }
+
   const checks = Array.isArray(c.innocence_check) ? c.innocence_check : [];
   const innocent = suspectIds.filter((id) => id !== sol?.culprit);
   for (const id of innocent) {
@@ -129,6 +166,8 @@ export function splitCase(c: GeneratedCase): { content: Record<string, unknown>;
     solution: c.solution,
     hints: Object.fromEntries(c.evidence.filter((e) => e.hint).map((e) => [e.id, e.text])),
     innocence_check: c.innocence_check,
+    deduction: c.deduction,
+    false_leads: c.false_leads,
   };
   return { content, secret };
 }
@@ -211,4 +250,27 @@ export function decideEditorial(review: unknown, thresholds: EditorThresholds): 
     return { decision: EditorDecision.borderline, reasons: weak.map((k) => `${k} scored ${scores[k]}.`) };
   }
   return { decision: EditorDecision.approve, reasons: [] };
+}
+
+export function revisable(review: unknown, thresholds: EditorThresholds): boolean {
+  const scores = (review as EditorReview | null)?.scores;
+  if (!scores || typeof scores !== 'object') return false;
+  const valid = EDITOR_CRITERIA.every((k) => Number.isInteger(scores[k]) && scores[k] >= 1 && scores[k] <= 5);
+  if (!valid) return false;
+  if (scores.content < thresholds.min || scores.difficulty_fit < thresholds.min) return false;
+  return EDITOR_CRITERIA.every((k) => scores[k] > thresholds.reject);
+}
+
+const ids = (items: { id: string }[] | undefined) => (items ?? []).map((i) => i.id).join(',');
+
+export function structureChanges(before: GeneratedCase, after: GeneratedCase): string[] {
+  const changes: string[] = [];
+  if (ids(before.suspects) !== ids(after?.suspects)) changes.push('suspect ids changed');
+  if (ids(before.motives) !== ids(after?.motives)) changes.push('motive ids changed');
+  const evidence = (c: GeneratedCase | undefined) => (c?.evidence ?? []).map((e) => `${e.id}:${e.hint}`).join(',');
+  if (evidence(before) !== evidence(after)) changes.push('evidence ids or hint flags changed');
+  const sol = (c: GeneratedCase | undefined) =>
+    c?.solution ? `${c.solution.culprit}|${c.solution.motive}|${[...(c.solution.evidence ?? [])].sort().join(',')}` : '';
+  if (sol(before) !== sol(after)) changes.push('solution changed');
+  return changes;
 }

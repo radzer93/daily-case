@@ -42,6 +42,17 @@ export interface InnocenceCheck {
   reason: string;
 }
 
+export interface DeductionStep {
+  uses: string[];
+  conclusion: string;
+}
+
+export interface FalseLead {
+  suspect_id: string;
+  points_to_them: string[];
+  cleared_by: string[];
+}
+
 export interface GeneratedCase {
   title: string;
   docket: string;
@@ -51,6 +62,8 @@ export interface GeneratedCase {
   suspects: GenSuspect[];
   evidence: GenEvidence[];
   motives: GenMotive[];
+  deduction: DeductionStep[];
+  false_leads: FalseLead[];
   solution: GenSolution;
   innocence_check: InnocenceCheck[];
 }

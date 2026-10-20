@@ -5,6 +5,7 @@ import { type LlmClient, QuotaExceededError, sleep } from './llm.ts';
 import {
   buildEditorUser,
   buildGeneratorUser,
+  buildRevisionUser,
   buildSolverUser,
   CASE_SCHEMA,
   EDITOR_SCHEMA,
@@ -26,7 +27,15 @@ import {
   type Seed,
   type SolverAnswer,
 } from './types.ts';
-import { decideEditorial, downgradeTarget, evaluateSolverRuns, splitCase, validateCase } from './validate.ts';
+import {
+  decideEditorial,
+  downgradeTarget,
+  evaluateSolverRuns,
+  revisable,
+  splitCase,
+  structureChanges,
+  validateCase,
+} from './validate.ts';
 
 const env = (name: string, fallback?: string): string => {
   const v = Deno.env.get(name) ?? fallback;
@@ -57,6 +66,7 @@ const CONFIG = {
   editorMinScore: () => Number(env('EDITOR_MIN_SCORE', '4')),
   editorRejectScore: () => Number(env('EDITOR_REJECT_SCORE', '2')),
   editorBorderline: () => env('EDITOR_BORDERLINE', EditorDecision.reject),
+  maxRevisions: () => Number(env('EDITOR_REVISIONS', '1')),
 };
 
 const BORDERLINE_STATUS: Record<string, CaseStatus> = {
@@ -98,6 +108,8 @@ type Target = { date: string; difficulty: Difficulty; recent_failures?: number }
 type Draft = {
   id: string;
   status?: CaseStatus;
+  revisions?: number;
+  revision_request?: Record<string, unknown> | null;
   case_date: string;
   difficulty: Difficulty;
   case: GeneratedCase;
@@ -279,7 +291,6 @@ async function reviewDraft(d: Draft, recent: RecentCase[], missing: Target[]): P
   }
   if (status === CaseStatus.approved && CONFIG.requireReview()) status = CaseStatus.pending;
 
-  const { content, secret } = splitCase(draft);
   const editor = {
     scores: review?.scores ?? null,
     issues: review?.issues ?? [],
@@ -289,6 +300,19 @@ async function reviewDraft(d: Draft, recent: RecentCase[], missing: Target[]): P
     model: client.model,
     downgraded_from: downgradedFrom,
   };
+
+  if (status === CaseStatus.rejected && (d.revisions ?? 0) < CONFIG.maxRevisions() && revisable(review, thresholds)) {
+    const { error: requestError } = await db.rpc('admin_finalize_case', {
+      p_id: d.id,
+      p_status: CaseStatus.verified,
+      p_meta: { revision_request: editor },
+    });
+    if (requestError) throw new Error(`admin_finalize_case: ${requestError.message}`);
+    await log(d.case_date, true, 'revision_requested', { id: d.id, difficulty: d.difficulty, title: draft.title, editor });
+    return { status: 'revision_requested', date: d.case_date, difficulty: d.difficulty, detail: { id: d.id, editor } };
+  }
+
+  const { content, secret } = splitCase(draft);
   const { error } = await db.rpc('admin_finalize_case', {
     p_id: d.id,
     p_status: status,
@@ -309,6 +333,54 @@ async function reviewDraft(d: Draft, recent: RecentCase[], missing: Target[]): P
   return { status, date: slot.date, difficulty: slot.difficulty, detail: { id: d.id, title: draft.title, editor } };
 }
 
+async function reviseDraft(d: Draft, editor: Record<string, unknown>, recent: RecentCase[]): Promise<Outcome> {
+  const client = llm(CONFIG.model());
+  const issues = (editor.issues as string[] | undefined) ?? [];
+  const reject = async (reasons: string[]) => {
+    await db.rpc('admin_finalize_case', {
+      p_id: d.id,
+      p_status: CaseStatus.rejected,
+      p_meta: { editor, rejected_because: reasons },
+    });
+    await log(d.case_date, false, 'revision_failed', { id: d.id, difficulty: d.difficulty, reasons });
+    return { status: CaseStatus.rejected, date: d.case_date, difficulty: d.difficulty, detail: reasons } as Outcome;
+  };
+
+  let revised: GeneratedCase;
+  try {
+    const res = await client.generate<GeneratedCase>({
+      system: GENERATOR_SYSTEM,
+      user: buildRevisionUser(d.case, d.difficulty, issues, recent.filter((r) => r.id !== d.id)),
+      name: 'save_case',
+      description: 'Saves the corrected crime case.',
+      schema: CASE_SCHEMA,
+      maxTokens: CONFIG.maxTokens(),
+      temperature: 0.4,
+    });
+    revised = res.data;
+  } catch (e) {
+    if (e instanceof QuotaExceededError) return quotaOutcome(e, client.model, d.case_date, d.difficulty, 'revision');
+    return reject([`revision call failed: ${String(e).slice(0, 300)}`]);
+  }
+
+  const problems = [...validateCase(revised, d.difficulty), ...structureChanges(d.case, revised)];
+  if (problems.length) return reject(problems);
+
+  const { content, secret } = splitCase(revised);
+  const revisions = (d.revisions ?? 0) + 1;
+  const { error } = await db.rpc('admin_revise_case', {
+    p_id: d.id,
+    p_title: revised.title,
+    p_content: content,
+    p_secret: { ...secret, draft: revised },
+    p_meta: { revisions, [`editor_before_revision_${revisions}`]: editor },
+  });
+  if (error) throw new Error(`admin_revise_case: ${error.message}`);
+
+  await log(d.case_date, true, 'revised', { id: d.id, difficulty: d.difficulty, title: revised.title, issues });
+  return { status: 'revised', date: d.case_date, difficulty: d.difficulty, detail: { id: d.id, title: revised.title } };
+}
+
 async function rejectExpired(d: Draft): Promise<Outcome> {
   const reasons = ['case date passed before review finished'];
   const { error } = await db.rpc('admin_finalize_case', { p_id: d.id, p_status: CaseStatus.rejected, p_meta: { rejected_because: reasons } });
@@ -318,6 +390,7 @@ async function rejectExpired(d: Draft): Promise<Outcome> {
 }
 
 async function advance(d: Draft, recent: RecentCase[], missing: Target[], full: boolean): Promise<Outcome> {
+  if (d.status === CaseStatus.verified && d.revision_request) return reviseDraft(d, d.revision_request, recent);
   if (d.status === CaseStatus.verified) return reviewDraft(d, recent, missing);
   const verified = await verifyDraft(d);
   if (full && verified.draft) return reviewDraft(verified.draft, recent, missing);
@@ -335,7 +408,7 @@ async function tick(options: { target?: Target; full?: boolean }): Promise<Outco
 
   if (pending && pending.case_date < plan.today) return rejectExpired(pending);
 
-  const nextModel = !pending
+  const nextModel = !pending || pending.revision_request
     ? CONFIG.model()
     : pending.status === CaseStatus.verified
     ? CONFIG.editorModel()

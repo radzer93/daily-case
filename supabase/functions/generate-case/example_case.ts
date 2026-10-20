@@ -95,6 +95,23 @@ export const EXAMPLE_CASE = {
       "label": "Zemsta za zwolnienie z pracy"
     }
   ],
+  "deduction": [
+    {
+      "uses": ["e1"],
+      "conclusion": "Drzwi zamknięto od zewnątrz kluczem, a klucz ofiary został w jej kieszeni: sprawca miał drugi klucz."
+    },
+    {
+      "uses": ["e4", "pawel"],
+      "conclusion": "Istniały tylko dwa klucze i nie da się ich dorobić. Drugi miał Paweł Rudnik, który kłamie o oknie i wpuszczonym gościu."
+    }
+  ],
+  "false_leads": [
+    {
+      "suspect_id": "kinga",
+      "points_to_them": ["kinga"],
+      "cleared_by": ["e4", "e1"]
+    }
+  ],
   "solution": {
     "culprit": "pawel",
     "motive": "dlugi",

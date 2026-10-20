@@ -102,6 +102,10 @@ Statuses: `draft` → `verified` (solver agreed) → `approved` | `rejected` (ed
 
 A hard case that scores at least `EDITOR_MIN_SCORE` on everything except `difficulty_fit` is not rejected: it moves to the earliest free medium slot in the buffer (`meta.moved_from`, `meta.editor.downgraded_from`), which saves the model calls of a new case.
 
+A rejected case whose structure is sound (`content` and `difficulty_fit` at least `EDITOR_MIN_SCORE`, nothing at or below `EDITOR_REJECT_SCORE`) gets one revision (`EDITOR_REVISIONS`): on the next run the generator fixes the editor's issues without changing ids or the solution, and the case goes through the solver and the editor again.
+
+Every generated case also carries a secret reasoning plan: `deduction` (steps, each listing the public evidence or statements it combines) and `false_leads` (innocent suspects who look guilty and what clears them). The minimum numbers of steps, combined steps and false leads grow with the level and are enforced by validation.
+
 Scores, issues and the decision are stored in `meta.editor`. A rejected slot is regenerated on a later run.
 
 **Player feedback.** After playing a case to the end (won, three misses or expired after at least one accusation) players can rate it with 1–5 stars and report a problem (`unfair`, `contradiction`, `language`, `inappropriate`, `other`). Stored in `private.case_feedback`.
@@ -185,6 +189,7 @@ select cron.unschedule('daily-case-generate');
 | `EDITOR_MIN_SCORE` | `4` | every criterion must reach this to approve |
 | `EDITOR_REJECT_SCORE` | `2` | any criterion at or below this rejects |
 | `EDITOR_BORDERLINE` | `reject` | `reject`, `pending` or `approve` for cases between the thresholds |
+| `EDITOR_REVISIONS` | `1` | how many times a fixable rejected case is revised |
 | `EDITOR_MAX_TOKENS` | `12000` / `2000` | output limit for the editor |
 | `REQUIRE_REVIEW` | `false` | `true` = cases the editor approves wait for manual approval as `pending` |
 | `GEN_MAX_TOKENS` | `24000` / `8000` | output limit for the case; raise it if responses are cut off |

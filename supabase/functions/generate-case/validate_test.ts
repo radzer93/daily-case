@@ -3,7 +3,15 @@ import { EXAMPLE_CASE } from './example_case.ts';
 import { LOCALES, pickSeed, SETTINGS } from './seeds.ts';
 import { buildGeneratorUser } from './prompt.ts';
 import { EditorDecision, type EditorScores, type GeneratedCase, type SolverAnswer } from './types.ts';
-import { decideEditorial, downgradeTarget, evaluateSolverRuns, splitCase, validateCase } from './validate.ts';
+import {
+  decideEditorial,
+  downgradeTarget,
+  evaluateSolverRuns,
+  revisable,
+  splitCase,
+  structureChanges,
+  validateCase,
+} from './validate.ts';
 import { parseRetryDelayMs, QuotaExceededError, quotaError } from './llm.ts';
 
 const base = (): GeneratedCase => structuredClone(EXAMPLE_CASE) as GeneratedCase;
@@ -181,4 +189,41 @@ Deno.test('editor: a good hard case that is too easy moves to medium', () => {
   assertEquals(downgradeTarget('hard', review({}), THRESHOLDS), null);
   assertEquals(downgradeTarget('medium', review({ difficulty_fit: 2 }), THRESHOLDS), null);
   assertEquals(downgradeTarget('hard', null, THRESHOLDS), null);
+});
+
+Deno.test('deduction plan and false leads follow the difficulty profile', () => {
+  const c = base();
+  c.deduction = [{ uses: ['e1'], conclusion: 'x' }];
+  assert(validateCase(c, 'easy').some((e) => e.includes('at least 2 steps')));
+  const d = base();
+  d.deduction[1].uses = ['e5'];
+  assert(validateCase(d, 'easy').some((e) => e.includes('deduction[2]')));
+  const f = base();
+  f.false_leads = [{ suspect_id: 'pawel', points_to_them: ['e2'], cleared_by: ['e3'] }];
+  assert(validateCase(f, 'easy').some((e) => e.includes('not an innocent suspect')));
+  assert(validateCase(base(), 'hard').some((e) => e.includes('false_leads: at least 2')));
+});
+
+Deno.test('split keeps the deduction plan secret', () => {
+  const { content, secret } = splitCase(base());
+  assertEquals('deduction' in content, false);
+  assert(Array.isArray(secret.deduction));
+});
+
+Deno.test('editor: only well-built cases with fixable flaws are revised', () => {
+  const review = (o: Partial<EditorScores>) => ({ scores: scores(o), issues: [], summary: '' });
+  assert(revisable(review({ originality: 3, language: 3 }), THRESHOLDS));
+  assertEquals(revisable(review({ difficulty_fit: 3 }), THRESHOLDS), false);
+  assertEquals(revisable(review({ setting: 2 }), THRESHOLDS), false);
+  assertEquals(revisable(review({ content: 3 }), THRESHOLDS), false);
+});
+
+Deno.test('revision must keep ids and the solution', () => {
+  assertEquals(structureChanges(base(), base()), []);
+  const moved = base();
+  moved.solution.culprit = 'igor';
+  assert(structureChanges(base(), moved).includes('solution changed'));
+  const hint = base();
+  hint.evidence[0].hint = true;
+  assert(structureChanges(base(), hint).includes('evidence ids or hint flags changed'));
 });

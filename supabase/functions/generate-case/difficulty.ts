@@ -7,6 +7,9 @@ export interface DifficultyProfile {
   mechanism: string;
   hints: string;
   rules: string[];
+  minSteps: number;
+  minCombinedSteps: number;
+  minFalseLeads: number;
 }
 
 export const PROFILES: Record<Difficulty, DifficultyProfile> = {
@@ -17,6 +20,9 @@ export const PROFILES: Record<Difficulty, DifficultyProfile> = {
     mechanism: 'one clear deduction mechanism; an attentive reader solves the case in a few minutes',
     hints: 'the two hints strongly confirm the solution',
     rules: [],
+    minSteps: 2,
+    minCombinedSteps: 1,
+    minFalseLeads: 0,
   },
   medium: {
     suspects: 4,
@@ -27,6 +33,9 @@ export const PROFILES: Record<Difficulty, DifficultyProfile> = {
     rules: [
       'No public record places the culprit at the scene during the crime; their presence must be inferred.',
     ],
+    minSteps: 2,
+    minCombinedSteps: 1,
+    minFalseLeads: 1,
   },
   hard: {
     suspects: 4,
@@ -41,6 +50,9 @@ export const PROFILES: Record<Difficulty, DifficultyProfile> = {
       'At least two innocent suspects look more suspicious than the culprit on first reading (motive, lie about something unrelated, presence nearby).',
       'If a case could be solved by matching one timestamp or one log line, it is not hard: rework it.',
     ],
+    minSteps: 3,
+    minCombinedSteps: 2,
+    minFalseLeads: 2,
   },
 };
 

@@ -38,6 +38,8 @@ FORMAT:
 - brief: 2 paragraphs of 2–4 sentences. The report, the place, the victim or loss, the circumstances.
 - statement: 2 paragraphs in the first person, spoken and natural. No admissions of guilt.
 - evidence text: 1–3 factual sentences in the style of an official record, with concrete times and numbers.
+- deduction: design the reasoning BEFORE writing the solution. Each step lists in "uses" the public evidence ids and/or suspect ids (meaning their statement) it relies on, and in "conclusion" what follows (in Polish). The last step identifies the culprit.
+- false_leads: innocent suspects who look guilty at first: what points to them ("points_to_them": public evidence or suspect ids) and what clears them ("cleared_by").
 - explain: 3 paragraphs: (1) how the public evidence points to the culprit, (2) what excludes the others, (3) the motive.
 
 STYLE: plain, concise Polish with the feel of police files. Invented names of places and businesses keep one grammatical gender and are declined correctly every time (e.g. "Pod Złotą Kotwicą"). Use technical terms of a trade only when sure of their meaning.`;
@@ -67,11 +69,13 @@ DIFFICULTY: ${seed.difficulty.toUpperCase()}
 - False leads: ${p.falseLeads}.
 - Deduction: ${p.mechanism}.
 - Hints: ${p.hints}.
+- deduction: at least ${p.minSteps} steps, at least ${p.minCombinedSteps} of them combining two or more items.
+- false_leads: at least ${p.minFalseLeads}.
 ${p.rules.map((r) => `- ${r}`).join('\n')}
 
 INTENSITY: ${INTENSITY_RULES[seed.intensity]}
 
-RECENT CASES (do not repeat titles, places or patterns):
+RECENT CASES (do not repeat places or patterns; the title must not start with the same word as any of them):
 ${avoid || '- none'}
 
 REFERENCE FOR FORMAT AND LOGIC (an easy case; do not copy the plot, names, place or mechanism):
@@ -89,7 +93,20 @@ const str = (description: string) => ({ type: 'string', description });
 
 export const CASE_SCHEMA = {
   type: 'object',
-  required: ['title', 'docket', 'place', 'date', 'brief', 'suspects', 'evidence', 'motives', 'solution', 'innocence_check'],
+  required: [
+    'title',
+    'docket',
+    'place',
+    'date',
+    'brief',
+    'suspects',
+    'evidence',
+    'motives',
+    'deduction',
+    'false_leads',
+    'solution',
+    'innocence_check',
+  ],
   properties: {
     title: str('Title in Polish, 2–4 words'),
     docket: str('Case reference'),
@@ -137,6 +154,31 @@ export const CASE_SCHEMA = {
         properties: { id: str('lowercase ASCII slug'), label: str('Motive, 2–6 words') },
       },
     },
+    deduction: {
+      type: 'array',
+      minItems: 2,
+      description: 'Reasoning chain from public material to the culprit, designed before the solution.',
+      items: {
+        type: 'object',
+        required: ['uses', 'conclusion'],
+        properties: {
+          uses: { type: 'array', minItems: 1, items: { type: 'string' }, description: 'public evidence ids or suspect ids' },
+          conclusion: str('What follows, in Polish'),
+        },
+      },
+    },
+    false_leads: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['suspect_id', 'points_to_them', 'cleared_by'],
+        properties: {
+          suspect_id: str('id of an innocent suspect'),
+          points_to_them: { type: 'array', minItems: 1, items: { type: 'string' } },
+          cleared_by: { type: 'array', minItems: 1, items: { type: 'string' } },
+        },
+      },
+    },
     solution: {
       type: 'object',
       required: ['culprit', 'motive', 'evidence', 'explain'],
@@ -162,6 +204,25 @@ export const CASE_SCHEMA = {
     },
   },
 };
+
+export function buildRevisionUser(c: GeneratedCase, difficulty: string, issues: string[], recent: RecentCase[]): string {
+  const titles = recent
+    .slice(0, 30)
+    .map((r) => `- ${r.title ?? '?'}`)
+    .join('\n');
+  return `An editor reviewed this ${difficulty.toUpperCase()} case and found the problems below. Fix them and return the whole corrected case as JSON matching the schema.
+
+KEEP UNCHANGED: all suspect, evidence and motive ids, the hint flags, the culprit, the true motive and solution.evidence. Keep the plot and the difficulty. Change only what is needed to fix the problems, and update deduction, false_leads, innocence_check and explain if the fixes affect them.
+
+PROBLEMS:
+${issues.map((i) => `- ${i}`).join('\n') || '- none listed'}
+
+RECENT TITLES (the title must not start with the same word as any of them):
+${titles || '- none'}
+
+CASE:
+${JSON.stringify(c)}`;
+}
 
 export const SOLVER_SYSTEM = `You are a very strong player of detective games. You solve the case using only the material provided, without guessing. The material is in Polish.
 Name the culprit, the motive and the piece of evidence that most strongly proves their guilt.
