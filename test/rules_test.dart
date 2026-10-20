@@ -1,3 +1,4 @@
+import 'package:daily_case/l10n/app_localizations_pl.dart';
 import 'package:daily_case/logic/rules.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -49,8 +50,11 @@ void main() {
     expect(scaleScore(10, 2.0), 20);
   });
 
+  final l = AppLocalizationsPl();
+
   test('share text names the level when given', () {
     final text = buildShareText(
+      l,
       title: 'Lep na muchy',
       day: 3,
       rows: const [
@@ -65,12 +69,26 @@ void main() {
     expect(text, 'Sprawa Dnia #3 · TRUDNA · Lep na muchy\n🟩🟩🟩\nEkspertyzy: 1 · 180 pkt');
   });
 
-  test('plural', () {
-    expect(plural(1, 'próba', 'próby', 'prób'), 'próba');
-    expect(plural(2, 'próba', 'próby', 'prób'), 'próby');
-    expect(plural(5, 'próba', 'próby', 'prób'), 'prób');
-    expect(plural(12, 'próba', 'próby', 'prób'), 'prób');
-    expect(plural(22, 'próba', 'próby', 'prób'), 'próby');
+  test('attempts use Polish plural forms', () {
+    expect(l.attemptsLeft(1, 0), '1 próba · ekspertyzy: 0');
+    expect(l.attemptsLeft(2, 1), '2 próby · ekspertyzy: 1');
+    expect(l.attemptsLeft(5, 0), '5 prób · ekspertyzy: 0');
+    expect(l.attemptsLeft(12, 0), '12 prób · ekspertyzy: 0');
+    expect(l.attemptsLeft(22, 0), '22 próby · ekspertyzy: 0');
+  });
+
+  group('isOldEnough', () {
+    final now = DateTime(2026, 10, 20, 15);
+    test('16th birthday today is enough', () {
+      expect(isOldEnough(DateTime(2010, 10, 20), now), isTrue);
+    });
+    test('16th birthday tomorrow is not enough', () {
+      expect(isOldEnough(DateTime(2010, 10, 21), now), isFalse);
+    });
+    test('adults and children', () {
+      expect(isOldEnough(DateTime(1980, 1, 1), now), isTrue);
+      expect(isOldEnough(DateTime(2015, 5, 5), now), isFalse);
+    });
   });
 
   test('formatClock', () {
@@ -80,6 +98,7 @@ void main() {
 
   test('share text does not reveal the solution', () {
     final text = buildShareText(
+      l,
       title: 'Lep na muchy',
       day: 3,
       rows: const [

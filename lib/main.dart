@@ -7,6 +7,7 @@ import 'data/case_repository.dart';
 import 'data/game_backend.dart';
 import 'data/local_backend.dart';
 import 'data/supabase_backend.dart';
+import 'l10n/app_localizations.dart';
 import 'screens/case_screen.dart';
 import 'state/game_controller.dart';
 import 'theme.dart';
@@ -27,6 +28,8 @@ Future<void> main() async {
   runApp(DailyCaseApp(controller: controller));
 }
 
+const appLocale = Locale('pl');
+
 class DailyCaseApp extends StatelessWidget {
   const DailyCaseApp({super.key, required this.controller});
   final GameController controller;
@@ -34,8 +37,11 @@ class DailyCaseApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Sprawa Dnia',
+      onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
       debugShowCheckedModeBanner: false,
+      locale: appLocale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
       themeMode: ThemeMode.system,

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+import '../l10n/labels.dart';
 import '../models/case_file.dart';
 import '../state/game_controller.dart';
 import '../theme.dart';
@@ -11,19 +13,17 @@ class DifficultyScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final l = AppLocalizations.of(context);
     return Scaffold(
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 32, 16, 40),
           children: [
-            Text('SPRAWA DNIA', style: displayStyle(size: 30, color: c.ink)),
+            Text(l.appBarTitle, style: displayStyle(size: 30, color: c.ink)),
             const SizedBox(height: 24),
-            Text('WYBIERZ POZIOM', style: displayStyle(size: 40, color: c.ink)),
+            Text(l.chooseLevelTitle, style: displayStyle(size: 40, color: c.ink)),
             const SizedBox(height: 10),
-            Text(
-              'Każdego dnia czekają trzy sprawy, po jednej na poziom. Poziom zmienisz w każdej chwili na ekranie sprawy.',
-              style: bodyStyle(color: c.muted),
-            ),
+            Text(l.chooseLevelBody, style: bodyStyle(color: c.muted)),
             const SizedBox(height: 24),
             for (final d in Difficulty.values) ...[
               _LevelCard(difficulty: d, onTap: () => controller.setDifficulty(d)),
@@ -44,6 +44,7 @@ class _LevelCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final l = AppLocalizations.of(context);
     final shape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(6),
       side: BorderSide(color: c.line, width: 1.5),
@@ -62,15 +63,15 @@ class _LevelCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(difficulty.label.toUpperCase(),
+                    Text(l.levelName(difficulty).toUpperCase(),
                         style: displayStyle(size: 26, weight: FontWeight.w800, color: c.ink)),
                     const SizedBox(height: 6),
-                    Text(difficulty.description, style: bodyStyle(size: 15, color: c.muted, height: 1.4)),
+                    Text(l.levelDescription(difficulty), style: bodyStyle(size: 15, color: c.muted, height: 1.4)),
                   ],
                 ),
               ),
               const SizedBox(width: 12),
-              Text(difficulty.multiplierLabel, style: monoStyle(size: 12, color: c.ink)),
+              Text(l.levelPoints(difficulty), style: monoStyle(size: 12, color: c.ink)),
             ],
           ),
         ),

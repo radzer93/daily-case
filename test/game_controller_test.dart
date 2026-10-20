@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:daily_case/data/game_backend.dart';
 import 'package:daily_case/data/local_backend.dart';
+import 'package:daily_case/l10n/app_localizations_pl.dart';
+import 'package:daily_case/l10n/labels.dart';
 import 'package:daily_case/models/case_file.dart';
 import 'package:daily_case/models/feedback.dart';
 import 'package:daily_case/state/game_controller.dart';
@@ -16,6 +18,7 @@ void main() {
       .map((e) => CaseFile.fromJson(e as Map<String, dynamic>))
       .toList();
 
+  final l = AppLocalizationsPl();
   late DateTime now;
   late SharedPreferences prefs;
 
@@ -87,7 +90,7 @@ void main() {
         final s = fullFor(g).solution!;
         await g.accuse(culprit: s.culprit, motive: s.motive, evidence: s.evidence.first);
         expect(g.progress.score, expected);
-        expect(g.shareText, contains(level.label.toUpperCase()));
+        expect(g.shareText(l), contains(l.levelName(level).toUpperCase()));
       }
     });
   });
@@ -120,7 +123,7 @@ void main() {
     expect(g.progress.solution, isNotNull);
     expect(g.stats.streak, 1);
     expect(g.stats.played, 1);
-    expect(g.shareText, contains('🟩🟥🟩\n🟩🟩🟩'));
+    expect(g.shareText(l), contains('🟩🟥🟩\n🟩🟩🟩'));
 
     final again = await loaded();
     expect(again.progress.won, isTrue);
@@ -195,7 +198,7 @@ void main() {
     final s = fullFor(g).solution!;
     await g.accuse(culprit: s.culprit, motive: s.motive, evidence: s.evidence.first);
     expect(g.progress.score, 90);
-    expect(g.shareText, contains('Ekspertyzy: 1 · 90 pkt'));
+    expect(g.shareText(l), contains('Ekspertyzy: 1 · 90 pkt'));
   });
 
   test('locked hint evidence cannot be used in an accusation', () async {
@@ -273,5 +276,29 @@ void main() {
       expect(g.progress.myRating, 2);
       expect(g.isDaily, isFalse);
     });
+  });
+
+  group('age gate', () {
+    test('starts unknown, an adult is allowed and remembered', () async {
+      final g = await loaded();
+      expect(g.ageGate, AgeGate.unknown);
+      expect(await g.submitBirthDate(DateTime(1990, 3, 3)), isTrue);
+      expect(g.ageGate, AgeGate.allowed);
+      expect((await loaded()).ageGate, AgeGate.allowed);
+    });
+
+    test('a 15-year-old is denied', () async {
+      final g = await loaded();
+      expect(await g.submitBirthDate(DateTime(2011, 1, 1)), isFalse);
+      expect(g.ageGate, AgeGate.denied);
+    });
+  });
+
+  test('backend errors are codes, not texts', () async {
+    final g = await loaded();
+    final hint = g.current.evidence.firstWhere((e) => e.hint);
+    final s = fullFor(g).solution!;
+    expect(await g.accuse(culprit: s.culprit, motive: s.motive, evidence: hint.id), BackendError.invalidChoice);
+    expect(l.errorText(BackendError.invalidChoice), isNotEmpty);
   });
 }

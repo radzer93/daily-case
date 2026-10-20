@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+import '../l10n/labels.dart';
+import '../logic/rules.dart';
 import '../models/case_file.dart';
 import '../models/progress.dart';
 import '../theme.dart';
@@ -48,8 +51,9 @@ class StreakChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final l = AppLocalizations.of(context);
     return Semantics(
-      label: 'Seria rozwiązanych spraw dnia: $streak',
+      label: l.streakSemantics(streak),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
@@ -57,7 +61,7 @@ class StreakChip extends StatelessWidget {
           border: Border.all(color: c.line),
           borderRadius: BorderRadius.circular(999),
         ),
-        child: Text('SERIA $streak', style: monoStyle(size: 11.5, color: c.ink)),
+        child: Text(l.streakChip(streak), style: monoStyle(size: 11.5, color: c.ink)),
       ),
     );
   }
@@ -78,6 +82,7 @@ class CaseHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final l = AppLocalizations.of(context);
     final cf = caseFile;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
@@ -88,7 +93,7 @@ class CaseHeader extends StatelessWidget {
             spacing: 14,
             runSpacing: 2,
             children: [
-              Text('SYGN. AKT ${cf.docket}',
+              Text(l.docketLabel(cf.docket),
                   style: monoStyle(size: 11, weight: FontWeight.w500, color: c.muted)),
               Text('${cf.place}, ${cf.date}'.toUpperCase(),
                   style: monoStyle(size: 11, weight: FontWeight.w500, color: c.muted)),
@@ -109,7 +114,7 @@ class CaseHeader extends StatelessWidget {
                   borderRadius: BorderRadius.circular(3),
                 ),
                 child: Text(
-                  cf.kind.badge.toUpperCase(),
+                  l.kindBadge(cf.kind).toUpperCase(),
                   style: monoStyle(size: 10, color: c.ink),
                 ),
               ),
@@ -120,7 +125,7 @@ class CaseHeader extends StatelessWidget {
                   borderRadius: BorderRadius.circular(3),
                 ),
                 child: Text(
-                  'POZIOM: ${cf.difficulty.label.toUpperCase()}',
+                  l.levelBadge(l.levelName(cf.difficulty).toUpperCase()),
                   style: monoStyle(size: 10, color: c.bg),
                 ),
               ),
@@ -134,9 +139,9 @@ class CaseHeader extends StatelessWidget {
               crossAxisAlignment: WrapCrossAlignment.center,
               spacing: 8,
               children: [
-                Text('Sprawa z archiwum. Rozwiązanie jest jawne.',
+                Text(l.archivedCaseNote,
                     style: monoStyle(size: 11, weight: FontWeight.w500, color: c.muted)),
-                OutlineAction(label: 'Sprawa dnia', onPressed: onBackToDaily, dense: true),
+                OutlineAction(label: l.dailyCase, onPressed: onBackToDaily, dense: true),
               ],
             ),
           ],
@@ -167,9 +172,10 @@ class EvidenceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final l = AppLocalizations.of(context);
     final headBg = visible ? c.tag : c.tagInk;
     final headFg = visible ? c.tagInk : c.tag;
-    final right = !visible ? 'ZASTRZEŻONE' : (evidence.hint ? 'EKSPERTYZA' : docket);
+    final right = !visible ? l.evidenceRestricted : (evidence.hint ? l.evidenceExpertise : docket);
 
     return Container(
       clipBehavior: Clip.antiAlias,
@@ -196,7 +202,7 @@ class EvidenceCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Text('DOWÓD NR $number', style: monoStyle(size: 11, color: headFg)),
+                Text(l.evidenceNumber(number), style: monoStyle(size: 11, color: headFg)),
                 const Spacer(),
                 Text(right, style: monoStyle(size: 11, color: headFg)),
               ],
@@ -223,7 +229,7 @@ class EvidenceCard extends StatelessWidget {
                       ),
                     ),
                   const SizedBox(height: 8),
-                  OutlineAction(label: 'Zleć ekspertyzę · −10 pkt', onPressed: onUnlock),
+                  OutlineAction(label: l.requestExpertise(hintCost), onPressed: onUnlock),
                 ],
               ],
             ),
@@ -253,6 +259,7 @@ class SuspectCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final l = AppLocalizations.of(context);
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 200),
       opacity: excluded ? 0.5 : 1,
@@ -268,7 +275,7 @@ class SuspectCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text('PROTOKÓŁ PRZESŁUCHANIA',
+                Text(l.interrogationRecord,
                     style: monoStyle(size: 10, weight: FontWeight.w500, color: c.muted, letterSpacing: 2)),
                 const Spacer(),
                 Text('$index/$total', style: monoStyle(size: 10, weight: FontWeight.w500, color: c.muted)),
@@ -285,16 +292,16 @@ class SuspectCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            Text('${suspect.age} l., ${suspect.role}', style: bodyStyle(size: 14, color: c.muted)),
+            Text(l.suspectAgeRole(suspect.age, suspect.role), style: bodyStyle(size: 14, color: c.muted)),
             const SizedBox(height: 12),
             for (final p in suspect.statement)
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),
-                child: Text('„$p”', style: bodyStyle(color: c.ink)),
+                child: Text(l.quoted(p), style: bodyStyle(color: c.ink)),
               ),
             const SizedBox(height: 4),
             OutlineAction(
-              label: excluded ? 'Wykluczony · cofnij' : 'Wyklucz z podejrzeń',
+              label: excluded ? l.excludedUndo : l.excludeSuspect,
               onPressed: onToggle,
               dense: true,
             ),
@@ -312,10 +319,11 @@ class AttemptRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final cells = [
-      ('SPRAWCA', caseFile.suspectName(attempt.culprit), attempt.result[0]),
-      ('MOTYW', caseFile.motiveLabel(attempt.motive), attempt.result[1]),
-      ('DOWÓD', caseFile.evidenceTitle(attempt.evidence), attempt.result[2]),
+      (l.cellCulprit, caseFile.suspectName(attempt.culprit), attempt.result[0]),
+      (l.cellMotive, caseFile.motiveLabel(attempt.motive), attempt.result[1]),
+      (l.cellEvidence, caseFile.evidenceTitle(attempt.evidence), attempt.result[2]),
     ];
     return IntrinsicHeight(
       child: Row(
@@ -340,8 +348,9 @@ class _Cell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final l = AppLocalizations.of(context);
     return Semantics(
-      label: '$label: $value, ${ok ? 'trafione' : 'chybione'}',
+      label: ok ? l.cellHit(label, value) : l.cellMiss(label, value),
       excludeSemantics: true,
       child: Container(
         padding: const EdgeInsets.all(8),
@@ -417,6 +426,8 @@ class _LevelChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = colors;
+    final l = AppLocalizations.of(context);
+    final name = l.levelName(difficulty);
     final mark = status == null || !status!.available
         ? ''
         : status!.won
@@ -431,7 +442,7 @@ class _LevelChip extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: 'Poziom ${difficulty.label}${status?.won == true ? ', rozwiązana' : ''}',
+      label: status?.won == true ? l.levelSemanticsSolved(name) : l.levelSemantics(name),
       excludeSemantics: true,
       child: Material(
         color: selected ? c.ink : c.surface,
@@ -442,7 +453,7 @@ class _LevelChip extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 9),
             child: Text(
-              '${difficulty.label.toUpperCase()}$mark',
+              '${name.toUpperCase()}$mark',
               textAlign: TextAlign.center,
               style: monoStyle(size: 11.5, color: selected ? c.bg : c.ink, letterSpacing: 1),
             ),

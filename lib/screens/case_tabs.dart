@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../data/game_backend.dart';
+import '../l10n/app_localizations.dart';
+import '../l10n/labels.dart';
 import '../logic/rules.dart';
 import '../models/case_file.dart';
 import '../state/game_controller.dart';
@@ -11,10 +14,10 @@ import '../widgets/verdict_view.dart';
 
 const _pagePadding = EdgeInsets.fromLTRB(16, 20, 16, 48);
 
-void _showError(BuildContext context, String message) {
+void _showError(BuildContext context, BackendError error) {
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(message)));
+    ..showSnackBar(SnackBar(content: Text(AppLocalizations.of(context).errorText(error))));
 }
 
 class BriefTab extends StatelessWidget {
@@ -25,6 +28,7 @@ class BriefTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final l = AppLocalizations.of(context);
     return ListView(
       padding: _pagePadding,
       children: [
@@ -43,20 +47,14 @@ class BriefTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('JAK PROWADZIĆ SPRAWĘ', style: monoStyle(size: 11, color: c.ink, letterSpacing: 1.6)),
+              Text(l.howToTitle, style: monoStyle(size: 11, color: c.ink, letterSpacing: 1.6)),
               const SizedBox(height: 6),
-              Text(
-                'Przeczytaj dowody i zeznania. Wskaż sprawcę, motyw i dowód, który go pogrąża. '
-                'Masz $maxAttempts próby, po każdej zobaczysz, co trafiłeś. '
-                'Ekspertyzy odsłaniają dodatkowe dowody, ale kosztują punkty. '
-                'Sprawa przepada o północy, a rozwiązanie odtajniamy następnego dnia.',
-                style: bodyStyle(size: 15, color: c.muted),
-              ),
+              Text(l.howToBody(maxAttempts), style: bodyStyle(size: 15, color: c.muted)),
             ],
           ),
         ),
         const SizedBox(height: 20),
-        Align(alignment: Alignment.centerLeft, child: PrimaryButton(label: 'Otwórz dowody', onPressed: onNext)),
+        Align(alignment: Alignment.centerLeft, child: PrimaryButton(label: l.openEvidence, onPressed: onNext)),
       ],
     );
   }
@@ -69,6 +67,7 @@ class EvidenceTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final cf = controller.current;
     final canUnlock = controller.isDaily && !controller.progress.done && !controller.busy;
     return ListView(
@@ -92,7 +91,7 @@ class EvidenceTab extends StatelessWidget {
           const SizedBox(height: 14),
         ],
         const SizedBox(height: 6),
-        Align(alignment: Alignment.centerLeft, child: OutlineAction(label: 'Przejdź do zeznań', onPressed: onNext)),
+        Align(alignment: Alignment.centerLeft, child: OutlineAction(label: l.goToStatements, onPressed: onNext)),
       ],
     );
   }
@@ -105,6 +104,7 @@ class SuspectsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final cf = controller.current;
     final p = controller.progress;
     final excluded = controller.excluded;
@@ -126,10 +126,10 @@ class SuspectsTab extends StatelessWidget {
           alignment: Alignment.centerLeft,
           child: PrimaryButton(
             label: !controller.isDaily
-                ? 'Zobacz rozwiązanie'
+                ? l.seeSolution
                 : p.done
-                    ? 'Zobacz werdykt'
-                    : 'Wnieś oskarżenie',
+                    ? l.seeVerdict
+                    : l.makeAccusation,
             onPressed: onNext,
           ),
         ),
@@ -155,11 +155,13 @@ class _AccusationTabState extends State<AccusationTab> with AutomaticKeepAliveCl
   String? _evidence;
   String? _error;
 
+  AppLocalizations get _l => AppLocalizations.of(context);
+
   GameController get c => widget.controller;
 
   Future<void> _submit(String? culprit) async {
     if (culprit == null || _motive == null || _evidence == null) {
-      setState(() => _error = 'Wskaż sprawcę, motyw i dowód.');
+      setState(() => _error = _l.accusationIncomplete);
       return;
     }
     setState(() => _error = null);
@@ -167,7 +169,7 @@ class _AccusationTabState extends State<AccusationTab> with AutomaticKeepAliveCl
     final err = await c.accuse(culprit: culprit, motive: _motive!, evidence: _evidence!);
     if (!mounted) return;
     if (err != null) {
-      setState(() => _error = err);
+      setState(() => _error = _l.errorText(err));
       return;
     }
     if (c.progress.attempts.length > before) {
@@ -183,6 +185,7 @@ class _AccusationTabState extends State<AccusationTab> with AutomaticKeepAliveCl
   Widget build(BuildContext context) {
     super.build(context);
     final colors = context.colors;
+    final l = AppLocalizations.of(context);
     final cf = c.current;
     final p = c.progress;
 
@@ -208,7 +211,7 @@ class _AccusationTabState extends State<AccusationTab> with AutomaticKeepAliveCl
     if (p.attempts.isNotEmpty) children.add(const SizedBox(height: 14));
     children.addAll([
       _Group(
-        label: 'Sprawca',
+        label: l.groupCulprit,
         options: [
           for (final s in cf.suspects)
             if (!excluded.contains(s.id)) (s.id, s.name),
@@ -217,13 +220,13 @@ class _AccusationTabState extends State<AccusationTab> with AutomaticKeepAliveCl
         onSelect: (v) => setState(() => _culprit = v),
       ),
       _Group(
-        label: 'Motyw',
+        label: l.groupMotive,
         options: [for (final m in cf.motives) (m.id, m.label)],
         selected: _motive,
         onSelect: (v) => setState(() => _motive = v),
       ),
       _Group(
-        label: 'Dowód, który go pogrąża',
+        label: l.groupEvidence,
         options: [
           for (final e in cf.evidence)
             if (c.isEvidenceVisible(e)) (e.id, e.title),
@@ -242,11 +245,11 @@ class _AccusationTabState extends State<AccusationTab> with AutomaticKeepAliveCl
         runSpacing: 10,
         children: [
           PrimaryButton(
-            label: c.busy ? 'Wysyłanie…' : 'Złóż akt oskarżenia',
+            label: c.busy ? l.sending : l.submitAccusation,
             onPressed: c.busy ? null : () => _submit(culprit),
           ),
           Text(
-            '$left ${plural(left, 'próba', 'próby', 'prób')} · ekspertyzy: ${p.unlocked.length}',
+            l.attemptsLeft(left, p.unlocked.length),
             style: monoStyle(size: 11.5, weight: FontWeight.w500, color: colors.muted, letterSpacing: 0.3),
           ),
         ],

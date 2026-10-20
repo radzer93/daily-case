@@ -36,13 +36,13 @@ class LocalGameBackend implements GameBackend {
     final parts = ref.split('-');
     final day = parts.length == 3 && parts[0] == 'local' ? int.tryParse(parts[1]) : null;
     final difficulty = parts.length == 3 ? Difficulty.tryFromWire(parts[2]) : null;
-    if (day == null || difficulty == null) throw const BackendException('Nie znaleziono sprawy.');
+    if (day == null || difficulty == null) throw const BackendException(BackendError.notFound);
     return (day: day, difficulty: difficulty);
   }
 
   Future<CaseFile> _full(_Slot s) async {
     final all = _cases ??= await _loadCases();
-    if (all.isEmpty) throw const BackendException('Brak spraw w pliku.');
+    if (all.isEmpty) throw const BackendException(BackendError.noCases);
     return all[dailyCaseIndex(s.day + s.difficulty.index, all.length)];
   }
 
@@ -114,9 +114,9 @@ class LocalGameBackend implements GameBackend {
 
   Future<_Slot> _openToday(String ref) async {
     final slot = _slotOf(ref);
-    if (slot.day != _today) throw const BackendException('Ta sprawa jest już zamknięta. Po północy czeka nowa.');
+    if (slot.day != _today) throw const BackendException(BackendError.caseClosed);
     final p = _progress(await _full(slot), slot);
-    if (p.done) throw const BackendException('Ta sprawa jest już zakończona.');
+    if (p.done) throw const BackendException(BackendError.caseFinished);
     return slot;
   }
 
@@ -143,7 +143,7 @@ class LocalGameBackend implements GameBackend {
   @override
   Future<CaseView> caseById(String ref) async {
     final slot = _slotOf(ref);
-    if (slot.day > _today) throw const BackendException('Nie znaleziono sprawy.');
+    if (slot.day > _today) throw const BackendException(BackendError.notFound);
     final full = await _full(slot);
     return CaseView(_public(full, slot), _progress(full, slot));
   }
@@ -164,7 +164,7 @@ class LocalGameBackend implements GameBackend {
         full.motives.any((m) => m.id == motive) &&
         ev.isNotEmpty &&
         (!ev.first.hint || s.unlocked.contains(evidence));
-    if (!validChoice) throw const BackendException('Nieprawidłowy wybór. Odśwież sprawę i spróbuj ponownie.');
+    if (!validChoice) throw const BackendException(BackendError.invalidChoice);
 
     final sol = full.solution!;
     final attempts = [
@@ -185,7 +185,7 @@ class LocalGameBackend implements GameBackend {
     final slot = await _openToday(caseRef);
     final full = await _full(slot);
     if (!full.evidence.any((e) => e.id == evidenceId && e.hint)) {
-      throw const BackendException('Nieprawidłowy wybór. Odśwież sprawę i spróbuj ponownie.');
+      throw const BackendException(BackendError.invalidChoice);
     }
     final s = _state(slot);
     if (!s.unlocked.contains(evidenceId)) {
@@ -202,15 +202,15 @@ class LocalGameBackend implements GameBackend {
     String? comment,
   }) async {
     final slot = _slotOf(caseRef);
-    if (slot.day > _today) throw const BackendException('Nie znaleziono sprawy.');
+    if (slot.day > _today) throw const BackendException(BackendError.notFound);
     final invalidRating = rating != null && (rating < minRating || rating > maxRating);
     if ((rating == null && reason == null) || invalidRating) {
-      throw const BackendException('Nieprawidłowy wybór. Odśwież sprawę i spróbuj ponownie.');
+      throw const BackendException(BackendError.invalidChoice);
     }
     final full = await _full(slot);
     final current = _progress(full, slot);
     if (!current.done || current.attempts.isEmpty) {
-      throw const BackendException('Ocenić można tylko sprawę, którą prowadziłeś do końca.');
+      throw const BackendException(BackendError.notFinished);
     }
     _save(slot, {
       if (rating != null) 'rating': rating,

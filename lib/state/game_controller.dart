@@ -4,12 +4,30 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/game_backend.dart';
+import '../l10n/app_localizations.dart';
+import '../l10n/labels.dart';
 import '../logic/rules.dart';
 import '../models/case_file.dart';
 import '../models/feedback.dart';
 import '../models/progress.dart';
 
 enum LoadState { loading, ready, noCase, error }
+
+enum AgeGate {
+  unknown(null),
+  allowed('allowed'),
+  denied('denied');
+
+  const AgeGate(this.wire);
+  final String? wire;
+
+  static AgeGate fromWire(String? value) {
+    for (final g in values) {
+      if (g.wire != null && g.wire == value) return g;
+    }
+    return unknown;
+  }
+}
 
 class GameController extends ChangeNotifier {
   GameController({
@@ -24,7 +42,7 @@ class GameController extends ChangeNotifier {
   final DateTime Function() _clock;
 
   LoadState state = LoadState.loading;
-  String? errorMessage;
+  BackendError? error;
   Stats stats = const Stats();
 
   bool busy = false;
@@ -35,6 +53,17 @@ class GameController extends ChangeNotifier {
   Map<Difficulty, LevelStatus> levels = const {};
 
   static const _difficultyKey = 'daily-case:difficulty';
+  static const _ageGateKey = 'daily-case:age-gate';
+
+  AgeGate get ageGate => AgeGate.fromWire(_prefs.getString(_ageGateKey));
+
+  Future<bool> submitBirthDate(DateTime birthDate) async {
+    final allowed = isOldEnough(birthDate, _clock());
+    final gate = allowed ? AgeGate.allowed : AgeGate.denied;
+    await _prefs.setString(_ageGateKey, gate.wire!);
+    notifyListeners();
+    return allowed;
+  }
 
   Difficulty? get chosenDifficulty => Difficulty.tryFromWire(_prefs.getString(_difficultyKey));
 
@@ -68,7 +97,8 @@ class GameController extends ChangeNotifier {
 
   bool get canShare => isDaily && progress.attempts.isNotEmpty && progress.done;
 
-  String get shareText => buildShareText(
+  String shareText(AppLocalizations l) => buildShareText(
+        l,
         title: current.title,
         day: current.dayNumber ?? 0,
         rows: [for (final a in progress.attempts) a.result],
@@ -76,7 +106,7 @@ class GameController extends ChangeNotifier {
         won: progress.won,
         score: progress.score,
         streak: stats.streak,
-        level: current.difficulty.label,
+        level: l.levelName(current.difficulty),
       );
 
   String get _excludedKey => 'daily-case:excluded:${current.id}';
@@ -97,7 +127,7 @@ class GameController extends ChangeNotifier {
   Future<void> load() async {
     final token = ++_loadSeq;
     state = LoadState.loading;
-    errorMessage = null;
+    error = null;
     notifyListeners();
     try {
       final t = await backend.today(difficulty);
@@ -111,11 +141,11 @@ class GameController extends ChangeNotifier {
       state = _daily == null ? LoadState.noCase : LoadState.ready;
     } on BackendException catch (e) {
       if (token != _loadSeq) return;
-      errorMessage = e.message;
+      error = e.error;
       state = LoadState.error;
     } catch (e) {
       if (token != _loadSeq) return;
-      errorMessage = 'Coś poszło nie tak. Spróbuj ponownie.';
+      error = BackendError.unknown;
       debugPrint('GameController.load: $e');
       state = LoadState.error;
     }
@@ -134,7 +164,7 @@ class GameController extends ChangeNotifier {
     await load();
   }
 
-  Future<String?> accuse({
+  Future<BackendError?> accuse({
     required String culprit,
     required String motive,
     required String evidence,
@@ -144,10 +174,10 @@ class GameController extends ChangeNotifier {
         refreshStats: true,
       );
 
-  Future<String?> unlockHint(String evidenceId) =>
+  Future<BackendError?> unlockHint(String evidenceId) =>
       _mutate(() => backend.unlockHint(current.id, evidenceId));
 
-  Future<String?> _mutate(Future<CaseProgress> Function() call, {bool refreshStats = false}) async {
+  Future<BackendError?> _mutate(Future<CaseProgress> Function() call, {bool refreshStats = false}) async {
     if (busy || !isDaily || _daily == null) return null;
     busy = true;
     notifyListeners();
@@ -160,10 +190,10 @@ class GameController extends ChangeNotifier {
       }
       return null;
     } on BackendException catch (e) {
-      return e.message;
+      return e.error;
     } catch (e) {
       debugPrint('GameController._mutate: $e');
-      return 'Coś poszło nie tak. Spróbuj ponownie.';
+      return BackendError.unknown;
     } finally {
       busy = false;
       notifyListeners();
@@ -172,12 +202,12 @@ class GameController extends ChangeNotifier {
 
   bool get canGiveFeedback => hasCase && progress.done && progress.attempts.isNotEmpty;
 
-  Future<String?> rateCase(int rating) => _feedback(rating: rating);
+  Future<BackendError?> rateCase(int rating) => _feedback(rating: rating);
 
-  Future<String?> reportCase(FeedbackReason reason, {String? comment}) =>
+  Future<BackendError?> reportCase(FeedbackReason reason, {String? comment}) =>
       _feedback(reason: reason, comment: comment);
 
-  Future<String?> _feedback({int? rating, FeedbackReason? reason, String? comment}) async {
+  Future<BackendError?> _feedback({int? rating, FeedbackReason? reason, String? comment}) async {
     if (busy || !canGiveFeedback) return null;
     final view = _view;
     final wasDaily = isDaily;
@@ -193,10 +223,10 @@ class GameController extends ChangeNotifier {
       }
       return null;
     } on BackendException catch (e) {
-      return e.message;
+      return e.error;
     } catch (e) {
       debugPrint('GameController._feedback: $e');
-      return 'Coś poszło nie tak. Spróbuj ponownie.';
+      return BackendError.unknown;
     } finally {
       busy = false;
       notifyListeners();
@@ -205,15 +235,15 @@ class GameController extends ChangeNotifier {
 
   Future<List<ArchiveEntry>> archive() => backend.archive();
 
-  Future<String?> openArchive(String ref) async {
+  Future<BackendError?> openArchive(String ref) async {
     try {
       _archived = await backend.caseById(ref);
       notifyListeners();
       return null;
     } on BackendException catch (e) {
-      return e.message;
+      return e.error;
     } catch (_) {
-      return 'Nie udało się otworzyć sprawy.';
+      return BackendError.openFailed;
     }
   }
 

@@ -4,11 +4,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../data/game_backend.dart';
+import '../l10n/app_localizations.dart';
+import '../l10n/labels.dart';
 import '../logic/rules.dart';
 import '../models/feedback.dart';
 import '../state/game_controller.dart';
 import '../theme.dart';
 import 'buttons.dart';
+
+List<InlineSpan> _emphasize(String text, String part, TextStyle style) {
+  final i = part.isEmpty ? -1 : text.indexOf(part);
+  if (i < 0) return [TextSpan(text: text)];
+  return [
+    TextSpan(text: text.substring(0, i)),
+    TextSpan(text: part, style: style),
+    TextSpan(text: text.substring(i + part.length)),
+  ];
+}
 
 class VerdictView extends StatelessWidget {
   const VerdictView({super.key, required this.controller});
@@ -17,6 +30,7 @@ class VerdictView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final l = AppLocalizations.of(context);
     final p = controller.progress;
     final cf = controller.current;
     final stats = controller.stats;
@@ -25,39 +39,28 @@ class VerdictView extends StatelessWidget {
 
     final String stamp;
     final List<InlineSpan> lead;
+    final culprit = solution == null ? '' : cf.suspectName(solution.culprit);
     if (p.won) {
-      stamp = 'Sprawa zamknięta';
-      lead = [
-        const TextSpan(text: 'Prokurator przyjmuje akt oskarżenia. Wynik: '),
-        TextSpan(text: '${p.score} pkt', style: bold),
-        const TextSpan(text: '.'),
-      ];
+      stamp = l.stampClosed;
+      final score = l.points(p.score);
+      lead = _emphasize(l.verdictWon(score), score, bold);
     } else if (p.dismissed) {
-      stamp = 'Sprawa umorzona';
+      stamp = l.stampDismissed;
       lead = solution == null
-          ? [const TextSpan(text: 'Trzy chybione oskarżenia. Rozwiązanie odtajnimy jutro po północy.')]
-          : [
-              const TextSpan(text: 'Trzy chybione oskarżenia. Sprawcą był(a) '),
-              TextSpan(text: cf.suspectName(solution.culprit), style: bold),
-              const TextSpan(text: '.'),
-            ];
+          ? [TextSpan(text: l.verdictDismissedPending)]
+          : _emphasize(l.verdictDismissed(culprit), culprit, bold);
     } else if (p.lapsed) {
-      stamp = 'Sprawa przepadła';
+      stamp = l.stampLapsed;
       lead = [
-        TextSpan(
-          text: p.attempts.isEmpty
-              ? 'Ta sprawa minęła bez Twojego śledztwa.'
-              : 'Północ minęła przed rozwiązaniem.',
-        ),
+        TextSpan(text: p.attempts.isEmpty ? l.verdictLapsedUntouched : l.verdictLapsedLate),
         if (solution != null) ...[
-          const TextSpan(text: ' Sprawcą był(a) '),
-          TextSpan(text: cf.suspectName(solution.culprit), style: bold),
-          const TextSpan(text: '.'),
+          const TextSpan(text: ' '),
+          ..._emphasize(l.verdictCulprit(culprit), culprit, bold),
         ],
       ];
     } else {
-      stamp = 'Sprawa w toku';
-      lead = const [TextSpan(text: 'Wróć do sprawy dnia, żeby ją rozwiązać.')];
+      stamp = l.stampOpen;
+      lead = [TextSpan(text: l.verdictOpen)];
     }
 
     return Container(
@@ -77,29 +80,26 @@ class VerdictView extends StatelessWidget {
             const SizedBox(height: 18),
             Row(
               children: [
-                _Stat(value: '${stats.played}', label: 'Spraw dnia'),
-                _Stat(value: '${stats.winRate}%', label: 'Rozwiązanych'),
-                _Stat(value: '${stats.streak}', label: 'Seria'),
-                _Stat(value: '${stats.best}', label: 'Najdłuższa'),
+                _Stat(value: '${stats.played}', label: l.statPlayed),
+                _Stat(value: '${stats.winRate}%', label: l.statWinRate),
+                _Stat(value: '${stats.streak}', label: l.statStreak),
+                _Stat(value: '${stats.best}', label: l.statBest),
               ],
             ),
           ],
           if (controller.canShare) ...[
             const SizedBox(height: 18),
-            _ShareBox(text: controller.shareText),
+            _ShareBox(text: controller.shareText(l)),
           ],
           if (controller.isDaily) ...[
             const SizedBox(height: 14),
             _Countdown(controller: controller),
           ],
           const SizedBox(height: 22),
-          Text('ROZWIĄZANIE', style: displayStyle(size: 24, weight: FontWeight.w800, color: c.ink)),
+          Text(l.tabSolution, style: displayStyle(size: 24, weight: FontWeight.w800, color: c.ink)),
           const SizedBox(height: 10),
           if (solution == null)
-            Text(
-              'Akta z rozwiązaniem odtajnimy po północy. Wróć jutro: w archiwum zobaczysz, kto to zrobił i dlaczego.',
-              style: bodyStyle(color: c.muted),
-            )
+            Text(l.solutionPending, style: bodyStyle(color: c.muted))
           else ...[
             for (final para in solution.explain)
               Padding(
@@ -123,16 +123,17 @@ class _FeedbackBox extends StatelessWidget {
   const _FeedbackBox({required this.controller});
   final GameController controller;
 
-  void _show(BuildContext context, String? error, String success) {
+  void _show(BuildContext context, BackendError? error, String success) {
+    final l = AppLocalizations.of(context);
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(error ?? success)));
+      ..showSnackBar(SnackBar(content: Text(error == null ? success : l.errorText(error))));
   }
 
   Future<void> _rate(BuildContext context, int rating) async {
     final error = await controller.rateCase(rating);
     if (!context.mounted) return;
-    _show(context, error, 'Dziękujemy za ocenę.');
+    _show(context, error, AppLocalizations.of(context).feedbackThanksRating);
   }
 
   Future<void> _report(BuildContext context) async {
@@ -146,11 +147,11 @@ class _FeedbackBox extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-              child: Text('Co jest nie tak z tą sprawą?', style: bodyStyle(color: ctx.colors.ink)),
+              child: Text(AppLocalizations.of(ctx).feedbackSheetTitle, style: bodyStyle(color: ctx.colors.ink)),
             ),
             for (final r in FeedbackReason.values)
               ListTile(
-                title: Text(r.label),
+                title: Text(AppLocalizations.of(ctx).reasonLabel(r)),
                 onTap: () => Navigator.of(ctx).pop(r),
               ),
             const SizedBox(height: 8),
@@ -161,19 +162,20 @@ class _FeedbackBox extends StatelessWidget {
     if (reason == null || !context.mounted) return;
     final error = await controller.reportCase(reason);
     if (!context.mounted) return;
-    _show(context, error, 'Dziękujemy. Sprawdzimy tę sprawę.');
+    _show(context, error, AppLocalizations.of(context).feedbackThanksReport);
   }
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final l = AppLocalizations.of(context);
     final p = controller.progress;
     final rating = p.myRating ?? 0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'JAK OCENIASZ TĘ SPRAWĘ?',
+          l.feedbackQuestion,
           style: monoStyle(size: 11, weight: FontWeight.w600, color: c.muted, letterSpacing: 0.8),
         ),
         const SizedBox(height: 4),
@@ -181,7 +183,7 @@ class _FeedbackBox extends StatelessWidget {
           children: [
             for (var i = minRating; i <= maxRating; i++)
               IconButton(
-                tooltip: 'Ocena $i z $maxRating',
+                tooltip: l.ratingTooltip(i, maxRating),
                 visualDensity: VisualDensity.compact,
                 onPressed: controller.busy ? null : () => _rate(context, i),
                 icon: Icon(
@@ -194,10 +196,10 @@ class _FeedbackBox extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         if (p.reported)
-          Text('Zgłoszenie przyjęte. Dziękujemy.', style: bodyStyle(color: c.muted))
+          Text(l.feedbackReported, style: bodyStyle(color: c.muted))
         else
           OutlineAction(
-            label: 'Zgłoś błąd w sprawie',
+            label: l.reportProblem,
             dense: true,
             onPressed: controller.busy ? null : () => _report(context),
           ),
@@ -213,6 +215,7 @@ class _ShareBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final l = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -236,7 +239,7 @@ class _ShareBox extends StatelessWidget {
           children: [
             Builder(
               builder: (bctx) => PrimaryButton(
-                label: 'Udostępnij wynik',
+                label: l.shareResult,
                 onPressed: () {
                   final box = bctx.findRenderObject() as RenderBox?;
                   Share.share(
@@ -247,13 +250,13 @@ class _ShareBox extends StatelessWidget {
               ),
             ),
             OutlineAction(
-              label: 'Kopiuj',
+              label: l.copy,
               onPressed: () async {
                 await Clipboard.setData(ClipboardData(text: text));
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context)
                   ..hideCurrentSnackBar()
-                  ..showSnackBar(const SnackBar(content: Text('Wynik skopiowany')));
+                  ..showSnackBar(SnackBar(content: Text(l.copied)));
               },
             ),
           ],
@@ -360,16 +363,15 @@ class _CountdownState extends State<_Countdown> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final clock = formatClock(_left);
     return Text.rich(
       TextSpan(
         style: monoStyle(size: 12, weight: FontWeight.w500, color: c.muted, letterSpacing: 0.4),
-        children: [
-          const TextSpan(text: 'Następna sprawa za '),
-          TextSpan(
-            text: formatClock(_left),
-            style: TextStyle(color: c.ink, fontWeight: FontWeight.w700, fontFeatures: const [FontFeature.tabularFigures()]),
-          ),
-        ],
+        children: _emphasize(
+          AppLocalizations.of(context).nextCaseIn(clock),
+          clock,
+          TextStyle(color: c.ink, fontWeight: FontWeight.w700, fontFeatures: const [FontFeature.tabularFigures()]),
+        ),
       ),
     );
   }

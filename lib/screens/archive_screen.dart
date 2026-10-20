@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../data/game_backend.dart';
+import '../l10n/app_localizations.dart';
+import '../l10n/labels.dart';
 import '../logic/rules.dart';
 import '../state/game_controller.dart';
 import '../theme.dart';
@@ -25,7 +27,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     if (!mounted) return;
     setState(() => _opening = false);
     if (err != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context).errorText(err))));
     } else {
       Navigator.of(context).pop();
     }
@@ -34,10 +36,11 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final l = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
-        title: Text('ARCHIWUM', style: displayStyle(size: 26, color: c.ink)),
+        title: Text(l.archiveTitle, style: displayStyle(size: 26, color: c.ink)),
         bottom: _opening
             ? PreferredSize(
                 preferredSize: const Size.fromHeight(2),
@@ -57,15 +60,15 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
               children: [
                 Text(
                   snap.error is BackendException
-                      ? (snap.error as BackendException).message
-                      : 'Nie udało się wczytać archiwum.',
+                      ? l.errorText((snap.error as BackendException).error)
+                      : l.archiveLoadFailed,
                   style: bodyStyle(color: c.muted),
                 ),
                 const SizedBox(height: 16),
                 Align(
                   alignment: Alignment.centerLeft,
                   child: PrimaryButton(
-                    label: 'Spróbuj ponownie',
+                    label: l.retry,
                     onPressed: () => setState(() => _future = widget.controller.archive()),
                   ),
                 ),
@@ -78,9 +81,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
             children: [
               Text(
-                items.isEmpty
-                    ? 'Archiwum jest jeszcze puste. Pierwsza sprawa trafi tu jutro, razem z rozwiązaniem.'
-                    : 'Sprawy z poprzednich dni. Rozwiązania są już jawne.',
+                items.isEmpty ? l.archiveEmpty : l.archiveIntro,
                 style: monoStyle(size: 11.5, weight: FontWeight.w500, color: c.muted, letterSpacing: 0.3, height: 1.5),
               ),
               const SizedBox(height: 14),
@@ -104,21 +105,22 @@ class _ArchiveTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final l = AppLocalizations.of(context);
     final e = entry;
 
     final (String status, Color statusColor) = e.won
-        ? ('ZAMKNIĘTA', c.ok)
+        ? (l.archiveClosed, c.ok)
         : e.attempts >= maxAttempts
-            ? ('UMORZONA', c.bad)
+            ? (l.archiveDismissed, c.bad)
             : e.attempts > 0
-                ? ('PRZEPADŁA', c.bad)
-                : ('BEZ ŚLEDZTWA', c.muted);
+                ? (l.archiveLapsed, c.bad)
+                : (l.archiveUntouched, c.muted);
 
     final sub = [
       '#${e.dayNumber}',
-      e.difficulty.label,
+      l.levelName(e.difficulty),
       e.place,
-      e.kind.label,
+      l.kindName(e.kind),
     ].where((s) => s.isNotEmpty).join(' · ').toUpperCase();
 
     final shape = RoundedRectangleBorder(

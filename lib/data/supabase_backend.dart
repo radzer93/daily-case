@@ -17,24 +17,30 @@ class SupabaseGameBackend implements GameBackend {
       }
       return await _client.rpc(fn, params: params);
     } on PostgrestException catch (e) {
-      throw BackendException(_message(e.message));
+      throw BackendException(_error(e.message), e.message);
     } on AuthException catch (e) {
-      throw BackendException('Nie udało się połączyć konta gracza: ${e.message}');
+      throw BackendException(BackendError.accountLink, e.message);
     } on BackendException {
       rethrow;
-    } catch (_) {
-      throw const BackendException('Brak połączenia z serwerem. Sprawdź internet i spróbuj ponownie.');
+    } catch (e) {
+      throw BackendException(BackendError.offline, e.toString());
     }
   }
 
-  static String _message(String raw) {
-    if (raw.contains('case_closed')) return 'Ta sprawa jest już zamknięta. Po północy czeka nowa.';
-    if (raw.contains('case_finished')) return 'Ta sprawa jest już zakończona.';
-    if (raw.contains('invalid_choice')) return 'Nieprawidłowy wybór. Odśwież sprawę i spróbuj ponownie.';
-    if (raw.contains('case_not_finished')) return 'Ocenić można tylko sprawę, którą prowadziłeś do końca.';
-    if (raw.contains('case_not_found')) return 'Nie znaleziono sprawy.';
-    if (raw.contains('not_authenticated')) return 'Sesja wygasła. Uruchom aplikację ponownie.';
-    return 'Błąd serwera: $raw';
+  static const _serverErrors = <String, BackendError>{
+    'case_closed': BackendError.caseClosed,
+    'case_not_finished': BackendError.notFinished,
+    'case_finished': BackendError.caseFinished,
+    'invalid_choice': BackendError.invalidChoice,
+    'case_not_found': BackendError.notFound,
+    'not_authenticated': BackendError.sessionExpired,
+  };
+
+  static BackendError _error(String raw) {
+    for (final entry in _serverErrors.entries) {
+      if (raw.contains(entry.key)) return entry.value;
+    }
+    return BackendError.server;
   }
 
   static Map<String, dynamic> _map(dynamic v) => Map<String, dynamic>.from(v as Map);

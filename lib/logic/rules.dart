@@ -1,3 +1,5 @@
+import '../l10n/app_localizations.dart';
+
 final DateTime launchDateUtc = DateTime.utc(2026, 10, 7);
 
 const int maxAttempts = 3;
@@ -32,14 +34,15 @@ String formatClock(Duration d) {
   return '${two(s ~/ 3600)}:${two(s % 3600 ~/ 60)}:${two(s % 60)}';
 }
 
-String plural(int n, String one, String few, String many) {
-  if (n == 1) return one;
-  final d = n % 10, h = n % 100;
-  if (d >= 2 && d <= 4 && (h < 12 || h > 14)) return few;
-  return many;
+const int minimumAge = 16;
+
+bool isOldEnough(DateTime birthDate, DateTime now, {int age = minimumAge}) {
+  final threshold = DateTime(birthDate.year + age, birthDate.month, birthDate.day);
+  return !DateTime(now.year, now.month, now.day).isBefore(threshold);
 }
 
-String buildShareText({
+String buildShareText(
+  AppLocalizations l, {
   required String title,
   required int day,
   required List<List<bool>> rows,
@@ -50,8 +53,8 @@ String buildShareText({
   String? level,
 }) {
   final grid = rows.map((r) => r.map((b) => b ? '🟩' : '🟥').join()).join('\n');
-  final result = won ? '$score pkt' : 'umorzona';
-  final tail = won && streak > 1 ? ' · seria $streak' : '';
-  final head = level == null ? 'Sprawa Dnia #$day · $title' : 'Sprawa Dnia #$day · ${level.toUpperCase()} · $title';
-  return '$head\n$grid\nEkspertyzy: $hints · $result$tail';
+  final result = won ? l.points(score) : l.shareDismissed;
+  final tail = won && streak > 1 ? ' · ${l.shareStreak(streak)}' : '';
+  final head = level == null ? l.shareHeader(day, title) : l.shareHeaderLevel(day, level.toUpperCase(), title);
+  return '$head\n$grid\n${l.shareSummary(hints, result)}$tail';
 }

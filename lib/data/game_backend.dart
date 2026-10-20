@@ -2,12 +2,28 @@ import '../models/case_file.dart';
 import '../models/feedback.dart';
 import '../models/progress.dart';
 
+enum BackendError {
+  notFound,
+  noCases,
+  caseClosed,
+  caseFinished,
+  invalidChoice,
+  notFinished,
+  sessionExpired,
+  accountLink,
+  offline,
+  server,
+  openFailed,
+  unknown,
+}
+
 class BackendException implements Exception {
-  const BackendException(this.message);
-  final String message;
+  const BackendException(this.error, [this.detail]);
+  final BackendError error;
+  final String? detail;
 
   @override
-  String toString() => message;
+  String toString() => detail == null ? error.name : '${error.name}: $detail';
 }
 
 class CaseView {

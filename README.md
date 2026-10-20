@@ -6,6 +6,10 @@ Fictional cases are generated daily by an AI model. Every case passes automatic 
 
 The player-facing content (UI and case scenarios) is in Polish. Everything else in the repository is in English.
 
+UI texts live in `lib/l10n/app_pl.arb` and are generated with `flutter gen-l10n` (configured in `l10n.yaml`, also run by `flutter pub get` and `flutter run`). To change or add a text, edit the ARB file, never the generated `app_localizations*.dart`. A new language is a new `app_<code>.arb` file with the same keys.
+
+On first launch players give their date of birth. Only the result is stored (`daily-case:age-gate` = `allowed` or `denied`), never the date. Players under 16 (`minimumAge` in `lib/logic/rules.dart`) cannot continue.
+
 ## Architecture
 
 ```
@@ -213,6 +217,7 @@ lib/
   data/supabase_backend.dart       production (RPC + anonymous sign-in)
   data/local_backend.dart          local mode, same rules as the server
   logic/rules.dart                 day number, scoring, share text
+  l10n/                            ARB texts, generated localizations, label helpers
   models/                          case, case kind, player progress
   state/game_controller.dart       screen state
   screens/, widgets/               UI

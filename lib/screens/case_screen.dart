@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../data/game_backend.dart';
+import '../l10n/app_localizations.dart';
+import '../l10n/labels.dart';
 import '../state/game_controller.dart';
 import '../theme.dart';
 import '../widgets/buttons.dart';
 import '../widgets/case_widgets.dart';
+import 'age_gate_screen.dart';
 import 'archive_screen.dart';
 import 'case_tabs.dart';
 import 'difficulty_screen.dart';
@@ -63,6 +67,8 @@ class _CaseScreenState extends State<CaseScreen>
       listenable: c,
       builder: (context, _) {
         final colors = context.colors;
+        final l = AppLocalizations.of(context);
+        if (c.ageGate != AgeGate.allowed) return AgeGateScreen(controller: c);
         if (c.needsDifficultyChoice) return DifficultyScreen(controller: c);
 
         final switcher = DifficultySwitcher(
@@ -82,10 +88,10 @@ class _CaseScreenState extends State<CaseScreen>
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
               children: [
-                Text('SPRAWA DNIA', style: displayStyle(size: 26, color: colors.ink)),
+                Text(l.appBarTitle, style: displayStyle(size: 26, color: colors.ink)),
                 if (c.hasCase && c.current.dayNumber != null) ...[
                   const SizedBox(width: 8),
-                  Text('nr ${c.current.dayNumber}',
+                  Text(l.caseNumber(c.current.dayNumber!),
                       style: monoStyle(size: 11, weight: FontWeight.w500, color: colors.muted)),
                 ],
               ],
@@ -94,7 +100,7 @@ class _CaseScreenState extends State<CaseScreen>
           actions: [
             Center(child: StreakChip(streak: c.stats.streak)),
             IconButton(
-              tooltip: 'Archiwum',
+              tooltip: l.archive,
               icon: const Icon(Icons.inventory_2_outlined),
               onPressed: _openArchive,
             ),
@@ -118,10 +124,10 @@ class _CaseScreenState extends State<CaseScreen>
         final cf = c.current;
         final p = c.progress;
         final lastTab = !c.isDaily
-            ? 'ROZWIĄZANIE'
+            ? l.tabSolution
             : p.done
-                ? 'WERDYKT'
-                : 'OSKARŻENIE ${p.attemptsLeft}×';
+                ? l.tabVerdict
+                : l.tabAccusation(p.attemptsLeft);
 
         return Scaffold(
           appBar: appBar,
@@ -129,7 +135,7 @@ class _CaseScreenState extends State<CaseScreen>
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (c.isDaily) switcher,
-              PoliceTape(words: ['Miejsce zdarzenia', 'Nie przekraczać', 'Policja', cf.place, 'Sygn. ${cf.docket}']),
+              PoliceTape(words: [l.tapeScene, l.tapeDoNotCross, l.tapePolice, cf.place, l.tapeDocket(cf.docket)]),
               CaseHeader(caseFile: cf, isDaily: c.isDaily, onBackToDaily: c.openDaily),
               TabBar(
                 controller: _tabs,
@@ -144,9 +150,9 @@ class _CaseScreenState extends State<CaseScreen>
                 indicatorSize: TabBarIndicatorSize.tab,
                 dividerColor: colors.line,
                 tabs: [
-                  const Tab(text: 'AKTA'),
-                  Tab(text: 'DOWODY ${c.visibleEvidenceCount}/${cf.evidence.length}'),
-                  Tab(text: 'ZEZNANIA ${cf.suspects.length}'),
+                  Tab(text: l.tabBrief),
+                  Tab(text: l.tabEvidence(c.visibleEvidenceCount, cf.evidence.length)),
+                  Tab(text: l.tabStatements(cf.suspects.length)),
                   Tab(text: lastTab),
                 ],
               ),
@@ -183,15 +189,17 @@ class _StatusView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final l = AppLocalizations.of(context);
     if (controller.state == LoadState.loading) {
       return Center(child: CircularProgressIndicator(color: colors.ink));
     }
 
     final isError = controller.state == LoadState.error;
-    final title = isError ? 'Brak połączenia z archiwum' : 'Akta jeszcze nie dotarły';
+    final title = isError ? l.statusErrorTitle : l.statusEmptyTitle;
+    final error = controller.error;
     final body = isError
-        ? (controller.errorMessage ?? 'Spróbuj ponownie za chwilę.')
-        : 'Dzisiejsza sprawa na poziomie ${controller.difficulty.label.toLowerCase()} jest w drodze. Zajrzyj za chwilę, wybierz inny poziom albo przejrzyj zamknięte sprawy.';
+        ? l.errorText(error ?? BackendError.unknown)
+        : l.statusEmptyBody(l.levelName(controller.difficulty).toLowerCase());
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 32, 16, 40),
@@ -204,8 +212,8 @@ class _StatusView extends StatelessWidget {
           spacing: 10,
           runSpacing: 10,
           children: [
-            PrimaryButton(label: 'Spróbuj ponownie', onPressed: controller.load),
-            if (!isError) OutlineAction(label: 'Archiwum', onPressed: onArchive),
+            PrimaryButton(label: l.retry, onPressed: controller.load),
+            if (!isError) OutlineAction(label: l.archive, onPressed: onArchive),
           ],
         ),
       ],

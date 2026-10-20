@@ -1,0 +1,403 @@
+{
+  "@@locale": "pl",
+  "appTitle": "Sprawa Dnia",
+  "appBarTitle": "SPRAWA DNIA",
+  "caseNumber": "nr {number}",
+  "@caseNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "archive": "Archiwum",
+  "retry": "Spróbuj ponownie",
+  "statusErrorTitle": "Brak połączenia z archiwum",
+  "statusEmptyTitle": "Akta jeszcze nie dotarły",
+  "statusEmptyBody": "Dzisiejsza sprawa na poziomie {level} jest w drodze. Zajrzyj za chwilę, wybierz inny poziom albo przejrzyj zamknięte sprawy.",
+  "@statusEmptyBody": {
+    "placeholders": {
+      "level": {
+        "type": "String"
+      }
+    }
+  },
+  "tabBrief": "AKTA",
+  "tabEvidence": "DOWODY {visible}/{total}",
+  "@tabEvidence": {
+    "placeholders": {
+      "visible": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "tabStatements": "ZEZNANIA {count}",
+  "@tabStatements": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "tabAccusation": "OSKARŻENIE {attempts}×",
+  "@tabAccusation": {
+    "placeholders": {
+      "attempts": {
+        "type": "int"
+      }
+    }
+  },
+  "tabVerdict": "WERDYKT",
+  "tabSolution": "ROZWIĄZANIE",
+  "tapeScene": "Miejsce zdarzenia",
+  "tapeDoNotCross": "Nie przekraczać",
+  "tapePolice": "Policja",
+  "tapeDocket": "Sygn. {docket}",
+  "@tapeDocket": {
+    "placeholders": {
+      "docket": {
+        "type": "String"
+      }
+    }
+  },
+  "howToTitle": "JAK PROWADZIĆ SPRAWĘ",
+  "howToBody": "Przeczytaj dowody i zeznania. Wskaż sprawcę, motyw i dowód, który go pogrąża. Masz {attempts} próby, po każdej zobaczysz, co trafiłeś. Ekspertyzy odsłaniają dodatkowe dowody, ale kosztują punkty. Sprawa przepada o północy, a rozwiązanie odtajniamy następnego dnia.",
+  "@howToBody": {
+    "placeholders": {
+      "attempts": {
+        "type": "int"
+      }
+    }
+  },
+  "openEvidence": "Otwórz dowody",
+  "goToStatements": "Przejdź do zeznań",
+  "seeSolution": "Zobacz rozwiązanie",
+  "seeVerdict": "Zobacz werdykt",
+  "makeAccusation": "Wnieś oskarżenie",
+  "accusationIncomplete": "Wskaż sprawcę, motyw i dowód.",
+  "groupCulprit": "Sprawca",
+  "groupMotive": "Motyw",
+  "groupEvidence": "Dowód, który go pogrąża",
+  "sending": "Wysyłanie…",
+  "submitAccusation": "Złóż akt oskarżenia",
+  "attemptsLeft": "{count, plural, one{{count} próba} few{{count} próby} many{{count} prób} other{{count} próby}} · ekspertyzy: {hints}",
+  "@attemptsLeft": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "hints": {
+        "type": "int"
+      }
+    }
+  },
+  "archiveTitle": "ARCHIWUM",
+  "archiveLoadFailed": "Nie udało się wczytać archiwum.",
+  "archiveEmpty": "Archiwum jest jeszcze puste. Pierwsza sprawa trafi tu jutro, razem z rozwiązaniem.",
+  "archiveIntro": "Sprawy z poprzednich dni. Rozwiązania są już jawne.",
+  "archiveClosed": "ZAMKNIĘTA",
+  "archiveDismissed": "UMORZONA",
+  "archiveLapsed": "PRZEPADŁA",
+  "archiveUntouched": "BEZ ŚLEDZTWA",
+  "levelEasy": "Łatwa",
+  "levelMedium": "Średnia",
+  "levelHard": "Trudna",
+  "levelEasyDescription": "3 podejrzanych, jeden wyraźny trop.",
+  "levelMediumDescription": "4 podejrzanych, trop ukryty w szczegółach.",
+  "levelHardDescription": "4 podejrzanych, mylne poszlaki, dwa tropy do połączenia.",
+  "levelMultiplier": "×{value} pkt",
+  "@levelMultiplier": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "chooseLevelTitle": "WYBIERZ POZIOM",
+  "chooseLevelBody": "Każdego dnia czekają trzy sprawy, po jednej na poziom. Poziom zmienisz w każdej chwili na ekranie sprawy.",
+  "kindFictional": "fikcyjna",
+  "kindInspired": "inspirowana",
+  "kindFictionalBadge": "Sprawa fikcyjna",
+  "kindInspiredBadge": "Inspirowana prawdziwą sprawą",
+  "streakSemantics": "Seria rozwiązanych spraw dnia: {streak}",
+  "@streakSemantics": {
+    "placeholders": {
+      "streak": {
+        "type": "int"
+      }
+    }
+  },
+  "streakChip": "SERIA {streak}",
+  "@streakChip": {
+    "placeholders": {
+      "streak": {
+        "type": "int"
+      }
+    }
+  },
+  "docketLabel": "SYGN. AKT {docket}",
+  "@docketLabel": {
+    "placeholders": {
+      "docket": {
+        "type": "String"
+      }
+    }
+  },
+  "levelBadge": "POZIOM: {level}",
+  "@levelBadge": {
+    "placeholders": {
+      "level": {
+        "type": "String"
+      }
+    }
+  },
+  "archivedCaseNote": "Sprawa z archiwum. Rozwiązanie jest jawne.",
+  "dailyCase": "Sprawa dnia",
+  "evidenceNumber": "DOWÓD NR {number}",
+  "@evidenceNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "evidenceRestricted": "ZASTRZEŻONE",
+  "evidenceExpertise": "EKSPERTYZA",
+  "requestExpertise": "Zleć ekspertyzę · −{cost} pkt",
+  "@requestExpertise": {
+    "placeholders": {
+      "cost": {
+        "type": "int"
+      }
+    }
+  },
+  "interrogationRecord": "PROTOKÓŁ PRZESŁUCHANIA",
+  "suspectAgeRole": "{age} l., {role}",
+  "@suspectAgeRole": {
+    "placeholders": {
+      "age": {
+        "type": "int"
+      },
+      "role": {
+        "type": "String"
+      }
+    }
+  },
+  "quoted": "„{text}”",
+  "@quoted": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "excludedUndo": "Wykluczony · cofnij",
+  "excludeSuspect": "Wyklucz z podejrzeń",
+  "cellCulprit": "SPRAWCA",
+  "cellMotive": "MOTYW",
+  "cellEvidence": "DOWÓD",
+  "cellHit": "{label}: {value}, trafione",
+  "@cellHit": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "cellMiss": "{label}: {value}, chybione",
+  "@cellMiss": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "levelSemantics": "Poziom {level}",
+  "@levelSemantics": {
+    "placeholders": {
+      "level": {
+        "type": "String"
+      }
+    }
+  },
+  "levelSemanticsSolved": "Poziom {level}, rozwiązana",
+  "@levelSemanticsSolved": {
+    "placeholders": {
+      "level": {
+        "type": "String"
+      }
+    }
+  },
+  "stampClosed": "Sprawa zamknięta",
+  "stampDismissed": "Sprawa umorzona",
+  "stampLapsed": "Sprawa przepadła",
+  "stampOpen": "Sprawa w toku",
+  "points": "{score} pkt",
+  "@points": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "verdictWon": "Prokurator przyjmuje akt oskarżenia. Wynik: {result}.",
+  "@verdictWon": {
+    "placeholders": {
+      "result": {
+        "type": "String"
+      }
+    }
+  },
+  "verdictDismissedPending": "Trzy chybione oskarżenia. Rozwiązanie odtajnimy jutro po północy.",
+  "verdictDismissed": "Trzy chybione oskarżenia. Sprawcą był(a) {name}.",
+  "@verdictDismissed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "verdictLapsedUntouched": "Ta sprawa minęła bez Twojego śledztwa.",
+  "verdictLapsedLate": "Północ minęła przed rozwiązaniem.",
+  "verdictCulprit": "Sprawcą był(a) {name}.",
+  "@verdictCulprit": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "verdictOpen": "Wróć do sprawy dnia, żeby ją rozwiązać.",
+  "statPlayed": "Spraw dnia",
+  "statWinRate": "Rozwiązanych",
+  "statStreak": "Seria",
+  "statBest": "Najdłuższa",
+  "solutionPending": "Akta z rozwiązaniem odtajnimy po północy. Wróć jutro: w archiwum zobaczysz, kto to zrobił i dlaczego.",
+  "nextCaseIn": "Następna sprawa za {time}",
+  "@nextCaseIn": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "shareResult": "Udostępnij wynik",
+  "copy": "Kopiuj",
+  "copied": "Wynik skopiowany",
+  "feedbackQuestion": "JAK OCENIASZ TĘ SPRAWĘ?",
+  "ratingTooltip": "Ocena {rating} z {max}",
+  "@ratingTooltip": {
+    "placeholders": {
+      "rating": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "feedbackThanksRating": "Dziękujemy za ocenę.",
+  "feedbackSheetTitle": "Co jest nie tak z tą sprawą?",
+  "feedbackThanksReport": "Dziękujemy. Sprawdzimy tę sprawę.",
+  "feedbackReported": "Zgłoszenie przyjęte. Dziękujemy.",
+  "reportProblem": "Zgłoś błąd w sprawie",
+  "reasonUnfair": "Nie da się tego rozwiązać bez zgadywania",
+  "reasonContradiction": "Sprzeczność w aktach lub rozwiązaniu",
+  "reasonLanguage": "Błędy językowe",
+  "reasonInappropriate": "Nieodpowiednie treści",
+  "reasonOther": "Inny problem",
+  "shareHeader": "Sprawa Dnia #{day} · {title}",
+  "@shareHeader": {
+    "placeholders": {
+      "day": {
+        "type": "int"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "shareHeaderLevel": "Sprawa Dnia #{day} · {level} · {title}",
+  "@shareHeaderLevel": {
+    "placeholders": {
+      "day": {
+        "type": "int"
+      },
+      "level": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "shareSummary": "Ekspertyzy: {hints} · {result}",
+  "@shareSummary": {
+    "placeholders": {
+      "hints": {
+        "type": "int"
+      },
+      "result": {
+        "type": "String"
+      }
+    }
+  },
+  "shareDismissed": "umorzona",
+  "shareStreak": "seria {streak}",
+  "@shareStreak": {
+    "placeholders": {
+      "streak": {
+        "type": "int"
+      }
+    }
+  },
+  "errorNotFound": "Nie znaleziono sprawy.",
+  "errorNoCases": "Brak spraw w pliku.",
+  "errorCaseClosed": "Ta sprawa jest już zamknięta. Po północy czeka nowa.",
+  "errorCaseFinished": "Ta sprawa jest już zakończona.",
+  "errorInvalidChoice": "Nieprawidłowy wybór. Odśwież sprawę i spróbuj ponownie.",
+  "errorNotFinished": "Ocenić można tylko sprawę, którą prowadziłeś do końca.",
+  "errorSessionExpired": "Sesja wygasła. Uruchom aplikację ponownie.",
+  "errorAccountLink": "Nie udało się połączyć konta gracza.",
+  "errorOffline": "Brak połączenia z serwerem. Sprawdź internet i spróbuj ponownie.",
+  "errorServer": "Błąd serwera. Spróbuj ponownie za chwilę.",
+  "errorUnknown": "Coś poszło nie tak. Spróbuj ponownie.",
+  "errorOpenCase": "Nie udało się otworzyć sprawy.",
+  "ageGateTitle": "TYLKO DLA OSÓB {age}+",
+  "@ageGateTitle": {
+    "placeholders": {
+      "age": {
+        "type": "int"
+      }
+    }
+  },
+  "ageGateBody": "Sprawy opisują zbrodnie, czasem w mrocznym tonie. Aby grać, musisz mieć ukończone {age} lat.",
+  "@ageGateBody": {
+    "placeholders": {
+      "age": {
+        "type": "int"
+      }
+    }
+  },
+  "ageGateAsk": "Podaj datę urodzenia",
+  "ageGatePrivacy": "Nie zapisujemy daty urodzenia, tylko informację, czy możesz grać.",
+  "ageGatePickerHelp": "DATA URODZENIA",
+  "ageDeniedTitle": "JESZCZE NIE TERAZ",
+  "ageDeniedBody": "Sprawa Dnia jest przeznaczona dla osób, które ukończyły {age} lat. Wróć do nas, gdy skończysz {age} lat.",
+  "@ageDeniedBody": {
+    "placeholders": {
+      "age": {
+        "type": "int"
+      }
+    }
+  }
+}

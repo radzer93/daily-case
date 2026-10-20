@@ -1,13 +1,12 @@
 enum FeedbackReason {
-  unfair('unfair', 'Nie da się tego rozwiązać bez zgadywania'),
-  contradiction('contradiction', 'Sprzeczność w aktach lub rozwiązaniu'),
-  language('language', 'Błędy językowe'),
-  inappropriate('inappropriate', 'Nieodpowiednie treści'),
-  other('other', 'Inny problem');
+  unfair('unfair'),
+  contradiction('contradiction'),
+  language('language'),
+  inappropriate('inappropriate'),
+  other('other');
 
-  const FeedbackReason(this.wire, this.label);
+  const FeedbackReason(this.wire);
   final String wire;
-  final String label;
 
   static FeedbackReason? tryFromWire(String? v) {
     for (final r in values) {
