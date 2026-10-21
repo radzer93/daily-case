@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/case_file.dart';
 import '../models/feedback.dart';
+import '../models/global_stats.dart';
 import '../models/progress.dart';
 import 'game_backend.dart';
 
@@ -100,6 +101,18 @@ class SupabaseGameBackend implements GameBackend {
         'p_reason': reason?.wire,
         'p_comment': comment,
       }));
+
+  @override
+  Future<GlobalStats?> caseStats(String caseRef) async {
+    final res = await _rpc('get_case_stats', {'p_case_id': caseRef});
+    return res == null ? null : GlobalStats.fromJson(_map(res));
+  }
+
+  @override
+  Future<Teaser?> tomorrowTeaser(Difficulty difficulty) async {
+    final res = await _rpc('get_tomorrow_teaser', {'p_difficulty': difficulty.wire});
+    return res == null ? null : Teaser.fromJson(_map(res));
+  }
 
   @override
   Future<Stats> stats() async => Stats.fromJson(_map(await _rpc('get_my_stats')));

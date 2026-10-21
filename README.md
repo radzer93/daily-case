@@ -248,6 +248,8 @@ deno test supabase/functions/quality-alert/email_test.ts
 - Score: 100 − 20 per missed attempt − 10 per hint, minimum 10, multiplied by ×1 / ×1.5 / ×2 for easy / medium / hard.
 - Streak: consecutive days with at least one solved case on any level, counted if the last win was today or yesterday.
 - After midnight accusations are rejected and the case moves to the archive with its solution.
+- Global stats (`get_case_stats`) are shown to players who finished the case, once at least 10 players have played it (`globalStatsMinPlayers`): solve rate, average attempts of solvers and, after the solution is revealed, the most common first accusation.
+- The verdict screen shows a teaser of tomorrow's case on the same level (`get_tomorrow_teaser`: title, place and date only).
 
 When changing these numbers, update both the SQL and `lib/logic/rules.dart` (local mode).
 

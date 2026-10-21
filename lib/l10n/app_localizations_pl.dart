@@ -492,4 +492,32 @@ class AppLocalizationsPl extends AppLocalizations {
   String ageDeniedBody(int age) {
     return 'Sprawa Dnia jest przeznaczona dla osób, które ukończyły $age lat. Wróć do nas, gdy skończysz $age lat.';
   }
+
+  @override
+  String get globalTitle => 'GRACZE';
+
+  @override
+  String globalSolved(int pct, int players) {
+    return 'Rozwiązało $pct% z $players graczy';
+  }
+
+  @override
+  String globalAvgAttempts(String value) {
+    return 'Średnia liczba prób u rozwiązujących: $value';
+  }
+
+  @override
+  String globalTopCulprit(String name, int pct) {
+    return 'Najczęstszy pierwszy wybór: $name ($pct%)';
+  }
+
+  @override
+  String globalTooFew(int min) {
+    return 'Statystyki pojawią się, gdy sprawę zakończy co najmniej $min graczy.';
+  }
+
+  @override
+  String tomorrowTeaser(String title, String place, String date) {
+    return 'Jutro: $title · $place, $date';
+  }
 }

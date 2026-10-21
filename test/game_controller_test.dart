@@ -301,4 +301,17 @@ void main() {
     expect(await g.accuse(culprit: s.culprit, motive: s.motive, evidence: hint.id), BackendError.invalidChoice);
     expect(l.errorText(BackendError.invalidChoice), isNotEmpty);
   });
+
+  test('teaser shows tomorrow on the chosen level, local mode has no global stats', () async {
+    final g = await loaded();
+    await pumpEventQueue();
+    final tomorrow = cases[(1 + Difficulty.easy.index) % cases.length];
+    expect(g.teaser?.title, tomorrow.title);
+    expect(g.teaser?.place, tomorrow.place);
+
+    final s = fullFor(g).solution!;
+    await g.accuse(culprit: s.culprit, motive: s.motive, evidence: s.evidence.first);
+    await pumpEventQueue();
+    expect(g.globalStats, isNull);
+  });
 }

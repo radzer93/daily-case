@@ -885,6 +885,42 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Sprawa Dnia jest przeznaczona dla osób, które ukończyły {age} lat. Wróć do nas, gdy skończysz {age} lat.'**
   String ageDeniedBody(int age);
+
+  /// No description provided for @globalTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'GRACZE'**
+  String get globalTitle;
+
+  /// No description provided for @globalSolved.
+  ///
+  /// In pl, this message translates to:
+  /// **'Rozwiązało {pct}% z {players} graczy'**
+  String globalSolved(int pct, int players);
+
+  /// No description provided for @globalAvgAttempts.
+  ///
+  /// In pl, this message translates to:
+  /// **'Średnia liczba prób u rozwiązujących: {value}'**
+  String globalAvgAttempts(String value);
+
+  /// No description provided for @globalTopCulprit.
+  ///
+  /// In pl, this message translates to:
+  /// **'Najczęstszy pierwszy wybór: {name} ({pct}%)'**
+  String globalTopCulprit(String name, int pct);
+
+  /// No description provided for @globalTooFew.
+  ///
+  /// In pl, this message translates to:
+  /// **'Statystyki pojawią się, gdy sprawę zakończy co najmniej {min} graczy.'**
+  String globalTooFew(int min);
+
+  /// No description provided for @tomorrowTeaser.
+  ///
+  /// In pl, this message translates to:
+  /// **'Jutro: {title} · {place}, {date}'**
+  String tomorrowTeaser(String title, String place, String date);
 }
 
 class _AppLocalizationsDelegate

@@ -9,6 +9,7 @@ import '../l10n/labels.dart';
 import '../logic/rules.dart';
 import '../models/case_file.dart';
 import '../models/feedback.dart';
+import '../models/global_stats.dart';
 import '../models/progress.dart';
 
 enum LoadState { loading, ready, noCase, error }
@@ -51,6 +52,33 @@ class GameController extends ChangeNotifier {
   CaseView? _archived;
   DateTime? _closesAt;
   Map<Difficulty, LevelStatus> levels = const {};
+  Teaser? teaser;
+  final Map<String, GlobalStats> _globalStats = {};
+
+  GlobalStats? get globalStats => hasCase ? _globalStats[current.id] : null;
+
+  void _fetchGlobalStats(CaseView? view) {
+    if (view == null || !view.progress.done || (_globalStats[view.caseFile.id]?.enough ?? false)) return;
+    final id = view.caseFile.id;
+    unawaited(backend.caseStats(id).then((s) {
+      if (s == null) return;
+      _globalStats[id] = s;
+      notifyListeners();
+    }).catchError((Object e) {
+      debugPrint('GameController.caseStats: $e');
+    }));
+  }
+
+  void _fetchTeaser(int token) {
+    final level = difficulty;
+    unawaited(backend.tomorrowTeaser(level).then((t) {
+      if (token != _loadSeq) return;
+      teaser = t;
+      notifyListeners();
+    }).catchError((Object e) {
+      debugPrint('GameController.tomorrowTeaser: $e');
+    }));
+  }
 
   static const _difficultyKey = 'daily-case:difficulty';
   static const _ageGateKey = 'daily-case:age-gate';
@@ -138,7 +166,11 @@ class GameController extends ChangeNotifier {
       _daily = t.caseFile == null ? null : CaseView(t.caseFile!, t.progress);
       _archived = null;
       stats = s;
+      teaser = null;
+      _globalStats.clear();
       state = _daily == null ? LoadState.noCase : LoadState.ready;
+      _fetchGlobalStats(_daily);
+      _fetchTeaser(token);
     } on BackendException catch (e) {
       if (token != _loadSeq) return;
       error = e.error;
@@ -185,6 +217,7 @@ class GameController extends ChangeNotifier {
       final p = await call();
       _daily = CaseView(_daily!.caseFile, p);
       levels = {...levels, _daily!.caseFile.difficulty: LevelStatus(won: p.won, done: p.done)};
+      _fetchGlobalStats(_daily);
       if (refreshStats && p.done) {
         stats = await backend.stats().catchError((_) => stats);
       }
@@ -238,6 +271,7 @@ class GameController extends ChangeNotifier {
   Future<BackendError?> openArchive(String ref) async {
     try {
       _archived = await backend.caseById(ref);
+      _fetchGlobalStats(_archived);
       notifyListeners();
       return null;
     } on BackendException catch (e) {

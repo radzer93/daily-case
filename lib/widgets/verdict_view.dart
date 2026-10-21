@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart' as intl;
 import 'package:share_plus/share_plus.dart';
 
 import '../data/game_backend.dart';
@@ -9,6 +10,7 @@ import '../l10n/app_localizations.dart';
 import '../l10n/labels.dart';
 import '../logic/rules.dart';
 import '../models/feedback.dart';
+import '../models/global_stats.dart';
 import '../state/game_controller.dart';
 import '../theme.dart';
 import 'buttons.dart';
@@ -87,6 +89,10 @@ class VerdictView extends StatelessWidget {
               ],
             ),
           ],
+          if (controller.globalStats != null) ...[
+            const SizedBox(height: 18),
+            _GlobalStatsBox(stats: controller.globalStats!, suspectName: cf.suspectName),
+          ],
           if (controller.canShare) ...[
             const SizedBox(height: 18),
             _ShareBox(text: controller.shareText(l)),
@@ -94,6 +100,13 @@ class VerdictView extends StatelessWidget {
           if (controller.isDaily) ...[
             const SizedBox(height: 14),
             _Countdown(controller: controller),
+          ],
+          if (controller.isDaily && controller.teaser != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              l.tomorrowTeaser(controller.teaser!.title, controller.teaser!.place, controller.teaser!.date),
+              style: monoStyle(size: 12, weight: FontWeight.w500, color: c.muted, letterSpacing: 0.4, height: 1.5),
+            ),
           ],
           const SizedBox(height: 22),
           Text(l.tabSolution, style: displayStyle(size: 24, weight: FontWeight.w800, color: c.ink)),
@@ -115,6 +128,35 @@ class VerdictView extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _GlobalStatsBox extends StatelessWidget {
+  const _GlobalStatsBox({required this.stats, required this.suspectName});
+  final GlobalStats stats;
+  final String Function(String id) suspectName;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final l = AppLocalizations.of(context);
+    final style = bodyStyle(size: 15, color: c.ink, height: 1.45);
+    final lines = <String>[
+      if (!stats.enough) l.globalTooFew(globalStatsMinPlayers),
+      if (stats.enough && stats.solvedPct != null) l.globalSolved(stats.solvedPct!, stats.players),
+      if (stats.enough && stats.avgAttempts != null)
+        l.globalAvgAttempts(intl.NumberFormat('0.0', l.localeName).format(stats.avgAttempts)),
+      if (stats.enough && stats.topCulpritId != null && stats.topCulpritPct != null)
+        l.globalTopCulprit(suspectName(stats.topCulpritId!), stats.topCulpritPct!),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(l.globalTitle, style: monoStyle(size: 11, weight: FontWeight.w600, color: c.muted, letterSpacing: 0.8)),
+        const SizedBox(height: 6),
+        for (final line in lines) Text(line, style: style),
+      ],
     );
   }
 }

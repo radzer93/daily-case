@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../logic/rules.dart';
 import '../models/case_file.dart';
 import '../models/feedback.dart';
+import '../models/global_stats.dart';
 import '../models/progress.dart';
 import 'game_backend.dart';
 
@@ -218,6 +219,15 @@ class LocalGameBackend implements GameBackend {
       if (comment != null) 'comment': comment.length > maxFeedbackComment ? comment.substring(0, maxFeedbackComment) : comment,
     });
     return _progress(full, slot);
+  }
+
+  @override
+  Future<GlobalStats?> caseStats(String caseRef) async => null;
+
+  @override
+  Future<Teaser?> tomorrowTeaser(Difficulty difficulty) async {
+    final full = await _full((day: _today + 1, difficulty: difficulty));
+    return Teaser(title: full.title, place: full.place, date: full.date);
   }
 
   @override

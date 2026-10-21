@@ -399,5 +399,58 @@
         "type": "int"
       }
     }
+  },
+  "globalTitle": "GRACZE",
+  "globalSolved": "Rozwiązało {pct}% z {players} graczy",
+  "@globalSolved": {
+    "placeholders": {
+      "pct": {
+        "type": "int"
+      },
+      "players": {
+        "type": "int"
+      }
+    }
+  },
+  "globalAvgAttempts": "Średnia liczba prób u rozwiązujących: {value}",
+  "@globalAvgAttempts": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "globalTopCulprit": "Najczęstszy pierwszy wybór: {name} ({pct}%)",
+  "@globalTopCulprit": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "pct": {
+        "type": "int"
+      }
+    }
+  },
+  "globalTooFew": "Statystyki pojawią się, gdy sprawę zakończy co najmniej {min} graczy.",
+  "@globalTooFew": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      }
+    }
+  },
+  "tomorrowTeaser": "Jutro: {title} · {place}, {date}",
+  "@tomorrowTeaser": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "place": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
   }
 }

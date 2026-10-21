@@ -36,6 +36,8 @@ String formatClock(Duration d) {
 
 const int minimumAge = 16;
 
+const int globalStatsMinPlayers = 10;
+
 bool isOldEnough(DateTime birthDate, DateTime now, {int age = minimumAge}) {
   final threshold = DateTime(birthDate.year + age, birthDate.month, birthDate.day);
   return !DateTime(now.year, now.month, now.day).isBefore(threshold);

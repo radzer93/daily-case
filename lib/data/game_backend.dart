@@ -1,5 +1,6 @@
 import '../models/case_file.dart';
 import '../models/feedback.dart';
+import '../models/global_stats.dart';
 import '../models/progress.dart';
 
 enum BackendError {
@@ -106,6 +107,10 @@ abstract class GameBackend {
   });
 
   Future<Stats> stats();
+
+  Future<GlobalStats?> caseStats(String caseRef);
+
+  Future<Teaser?> tomorrowTeaser(Difficulty difficulty);
 
   Future<List<ArchiveEntry>> archive();
 }
