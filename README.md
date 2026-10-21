@@ -131,7 +131,7 @@ Scores, issues and the decision are stored in `meta.editor`. A rejected slot is 
 | `inappropriate` | at least 1 "inappropriate" report | today's and yesterday's cases |
 | `many_reports` | ≥ `ALERT_MIN_REPORTS` (3) reports | today's and yesterday's cases |
 | `low_rating` | ≥ `ALERT_MIN_RATINGS` (5) ratings, average < `ALERT_LOW_RATING` (2.5) | today's and yesterday's cases |
-| `missing_case` | no published case for a level today | today |
+| `missing_case` | no published case for a level today | from `ALERT_TODAY_HOUR` (08:00), after the overnight generation |
 | `missing_tomorrow` | no published case for a level tomorrow | from `ALERT_TOMORROW_HOUR` (18:00) |
 
 `inappropriate` and `missing_case` are marked `[URGENT]` in the subject; `missing_tomorrow` is informational. Every case alert includes the ready kill-switch query. Sent alerts are stored in `private.alerts`.

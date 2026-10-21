@@ -17,6 +17,7 @@ const CONFIG = {
   minRatings: () => Number(env('ALERT_MIN_RATINGS', '5')),
   lowRating: () => Number(env('ALERT_LOW_RATING', '2.5')),
   tomorrowCheckHour: () => Number(env('ALERT_TOMORROW_HOUR', '18')),
+  todayCheckHour: () => Number(env('ALERT_TODAY_HOUR', '8')),
 };
 
 const db = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), {
@@ -42,6 +43,7 @@ async function run(dryRun: boolean): Promise<Record<string, unknown>> {
     p_min_ratings: CONFIG.minRatings(),
     p_low_rating: CONFIG.lowRating(),
     p_tomorrow_check_hour: CONFIG.tomorrowCheckHour(),
+    p_today_check_hour: CONFIG.todayCheckHour(),
   });
   if (error) throw new Error(`admin_quality_alerts: ${error.message}`);
 
