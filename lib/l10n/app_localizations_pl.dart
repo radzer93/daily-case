@@ -520,4 +520,18 @@ class AppLocalizationsPl extends AppLocalizations {
   String tomorrowTeaser(String title, String place, String date) {
     return 'Jutro: $title · $place, $date';
   }
+
+  @override
+  String get chooseLanguageTitle => 'WYBIERZ JĘZYK';
+
+  @override
+  String get chooseLanguageBody =>
+      'Język zmienisz w każdej chwili ikoną na górze ekranu sprawy.';
+
+  @override
+  String get languageTooltip => 'Język';
+
+  @override
+  String get untranslatedNote =>
+      'Sprawy, których jeszcze nie przetłumaczono, wyświetlą się po polsku.';
 }

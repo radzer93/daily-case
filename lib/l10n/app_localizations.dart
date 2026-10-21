@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
+import 'app_localizations_en.dart';
 import 'app_localizations_pl.dart';
 
 // ignore_for_file: type=lint
@@ -92,7 +93,10 @@ abstract class AppLocalizations {
   ];
 
   /// A list of this localizations delegate's supported locales.
-  static const List<Locale> supportedLocales = <Locale>[Locale('pl')];
+  static const List<Locale> supportedLocales = <Locale>[
+    Locale('en'),
+    Locale('pl')
+  ];
 
   /// No description provided for @appTitle.
   ///
@@ -921,6 +925,30 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Jutro: {title} · {place}, {date}'**
   String tomorrowTeaser(String title, String place, String date);
+
+  /// No description provided for @chooseLanguageTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'WYBIERZ JĘZYK'**
+  String get chooseLanguageTitle;
+
+  /// No description provided for @chooseLanguageBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'Język zmienisz w każdej chwili ikoną na górze ekranu sprawy.'**
+  String get chooseLanguageBody;
+
+  /// No description provided for @languageTooltip.
+  ///
+  /// In pl, this message translates to:
+  /// **'Język'**
+  String get languageTooltip;
+
+  /// No description provided for @untranslatedNote.
+  ///
+  /// In pl, this message translates to:
+  /// **'Sprawy, których jeszcze nie przetłumaczono, wyświetlą się po polsku.'**
+  String get untranslatedNote;
 }
 
 class _AppLocalizationsDelegate
@@ -934,7 +962,7 @@ class _AppLocalizationsDelegate
 
   @override
   bool isSupported(Locale locale) =>
-      <String>['pl'].contains(locale.languageCode);
+      <String>['en', 'pl'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
@@ -943,6 +971,8 @@ class _AppLocalizationsDelegate
 AppLocalizations lookupAppLocalizations(Locale locale) {
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
+    case 'en':
+      return AppLocalizationsEn();
     case 'pl':
       return AppLocalizationsPl();
   }

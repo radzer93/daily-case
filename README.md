@@ -8,6 +8,8 @@ The player-facing content (UI and case scenarios) is in Polish. Everything else 
 
 UI texts live in `lib/l10n/app_pl.arb` and are generated with `flutter gen-l10n` (configured in `l10n.yaml`, also run by `flutter pub get` and `flutter run`). To change or add a text, edit the ARB file, never the generated `app_localizations*.dart`. A new language is a new `app_<code>.arb` file with the same keys.
 
+**Languages.** The app ships with Polish and English UI texts (`app_pl.arb`, `app_en.arb`). Which languages players can get is set at build time with `LANGUAGES` in `env.json` (default `pl`). When more than one language is enabled, the first screen asks the player to choose one (pre-selected from the device language); it can be changed later with the language icon on the case screen. The choice is stored on the device and sent to the server in the `x-lang` header. Cases are written in Polish; the generator translates approved cases in the buffer into the languages listed in `TRANSLATE_LANGS` (for example `en`, using `TRANSLATE_MODEL`), keeping all ids, so players in every language share the same case, attempts and stats. Untranslated cases are served in Polish. To launch English: set `TRANSLATE_LANGS=en`, wait until the buffer is translated (`translated` entries in `private.generation_log`), then build the app with `"LANGUAGES": "pl,en"`.
+
 On first launch players give their date of birth. Only the result is stored (`daily-case:age-gate` = `allowed` or `denied`), never the date. Players under 16 (`minimumAge` in `lib/logic/rules.dart`) cannot continue.
 
 ## Architecture
@@ -194,6 +196,9 @@ select cron.unschedule('daily-case-generate');
 | `EDITOR_REJECT_SCORE` | `2` | any criterion at or below this rejects |
 | `EDITOR_BORDERLINE` | `reject` | `reject`, `pending` or `approve` for cases between the thresholds |
 | `EDITOR_REVISIONS` | `1` | how many times a fixable rejected case is revised |
+| `TRANSLATE_LANGS` | empty | comma-separated languages to translate approved cases into, e.g. `en` |
+| `TRANSLATE_MODEL` | same as `EDITOR_MODEL` | model that translates cases |
+| `TRANSLATE_THINKING` | `medium` | Gemini thinking level for translation |
 | `EDITOR_MAX_TOKENS` | `12000` / `2000` | output limit for the editor |
 | `REQUIRE_REVIEW` | `false` | `true` = cases the editor approves wait for manual approval as `pending` |
 | `GEN_MAX_TOKENS` | `24000` / `8000` | output limit for the case; raise it if responses are cut off |

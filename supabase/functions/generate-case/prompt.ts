@@ -224,6 +224,22 @@ CASE:
 ${JSON.stringify(c)}`;
 }
 
+export const LANGUAGE_NAMES: Record<string, string> = {
+  en: 'English',
+};
+
+export const TRANSLATOR_SYSTEM = `You translate crime puzzles for "Sprawa Dnia", a daily detective game, from Polish into another language.
+The translation must read as if it were written in the target language: natural, idiomatic, in the tone of police files, statements spoken and natural.
+Keep every fact exactly: names, ages, times, numbers, distances, dates, places and the logic of the case. Do not add, remove or soften anything.
+Keep all ids unchanged (suspect, evidence and motive ids, solution ids, hint flags). Names of people and places stay as they are; translate titles, roles, institutions and descriptions.`;
+
+export function buildTranslationUser(c: GeneratedCase, lang: string): string {
+  return `Translate the case below into ${LANGUAGE_NAMES[lang] ?? lang}. Translate every text field, including deduction, false_leads, innocence_check and solution.explain. Return the whole case as JSON matching the schema.
+
+CASE:
+${JSON.stringify(c)}`;
+}
+
 export const SOLVER_SYSTEM = `You are a very strong player of detective games. You solve the case using only the material provided, without guessing. The material is in Polish.
 Name the culprit, the motive and the piece of evidence that most strongly proves their guilt.
 If the material lets you fairly argue for another culprit, add them to other_possible_culprits. If you have to guess, set confidence to "guess".`;

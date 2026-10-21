@@ -13,6 +13,8 @@ import {
   GENERATOR_SYSTEM,
   SOLVER_SCHEMA,
   SOLVER_SYSTEM,
+  TRANSLATOR_SYSTEM,
+  buildTranslationUser,
 } from './prompt.ts';
 import { pickSeed } from './seeds.ts';
 import {
@@ -31,9 +33,11 @@ import {
   decideEditorial,
   downgradeTarget,
   evaluateSolverRuns,
+  joinCase,
   revisable,
   splitCase,
   structureChanges,
+  translationProblems,
   validateCase,
 } from './validate.ts';
 
@@ -67,6 +71,13 @@ const CONFIG = {
   editorRejectScore: () => Number(env('EDITOR_REJECT_SCORE', '2')),
   editorBorderline: () => env('EDITOR_BORDERLINE', EditorDecision.reject),
   maxRevisions: () => Number(env('EDITOR_REVISIONS', '1')),
+  translateLangs: () =>
+    (Deno.env.get('TRANSLATE_LANGS') ?? '')
+      .split(',')
+      .map((l) => l.trim().toLowerCase())
+      .filter((l) => /^[a-z]{2}$/.test(l) && l !== 'pl'),
+  translateModel: () => env('TRANSLATE_MODEL', CONFIG.editorModel()),
+  translateThinking: () => env('TRANSLATE_THINKING', 'medium'),
 };
 
 const BORDERLINE_STATUS: Record<string, CaseStatus> = {
@@ -384,6 +395,69 @@ async function reviseDraft(d: Draft, editor: Record<string, unknown>, recent: Re
   return { status: 'revised', date: d.case_date, difficulty: d.difficulty, detail: { id: d.id, title: revised.title } };
 }
 
+type Untranslated = {
+  id: string;
+  case_date: string;
+  difficulty: Difficulty;
+  title: string;
+  content: Record<string, unknown>;
+  secret: Record<string, unknown>;
+  missing: string[];
+};
+
+async function translateCase(u: Untranslated): Promise<Outcome> {
+  const lang = u.missing[0];
+  const client = llm(CONFIG.translateModel(), CONFIG.translateThinking());
+  const original = joinCase(u.title, u.content, u.secret);
+
+  let translated: GeneratedCase;
+  try {
+    const res = await client.generate<GeneratedCase>({
+      system: TRANSLATOR_SYSTEM,
+      user: buildTranslationUser(original, lang),
+      name: 'save_case',
+      description: 'Saves the translated crime case.',
+      schema: CASE_SCHEMA,
+      maxTokens: CONFIG.maxTokens(),
+      temperature: 0.3,
+    });
+    translated = res.data;
+  } catch (e) {
+    if (e instanceof QuotaExceededError) return quotaOutcome(e, client.model, u.case_date, u.difficulty, 'translation');
+    await log(u.case_date, false, 'translation', { id: u.id, difficulty: u.difficulty, lang, error: String(e) });
+    return { status: 'translation_failed', date: u.case_date, difficulty: u.difficulty, detail: String(e) };
+  }
+
+  const problems = translationProblems(original, translated);
+  if (problems.length) {
+    await log(u.case_date, false, 'translation', { id: u.id, difficulty: u.difficulty, lang, problems });
+    return { status: 'translation_invalid', date: u.case_date, difficulty: u.difficulty, detail: problems };
+  }
+
+  const { content, secret } = splitCase(translated);
+  content.note = u.content.note ?? null;
+  const { error } = await db.rpc('admin_set_translation', {
+    p_id: u.id,
+    p_lang: lang,
+    p_value: { title: translated.title, content, secret, model: client.model },
+  });
+  if (error) throw new Error(`admin_set_translation: ${error.message}`);
+
+  await log(u.case_date, true, 'translated', { id: u.id, difficulty: u.difficulty, lang, title: translated.title });
+  return { status: 'translated', date: u.case_date, difficulty: u.difficulty, detail: { id: u.id, lang } };
+}
+
+async function nextTranslation(): Promise<Untranslated | undefined> {
+  const langs = CONFIG.translateLangs();
+  if (langs.length === 0) return undefined;
+  const { data, error } = await db.rpc('admin_untranslated', { p_langs: langs, p_limit: 1 });
+  if (error) {
+    console.error('admin_untranslated', error.message);
+    return undefined;
+  }
+  return ((data ?? []) as Untranslated[])[0];
+}
+
 async function rejectExpired(d: Draft): Promise<Outcome> {
   const reasons = ['case date passed before review finished'];
   const { error } = await db.rpc('admin_finalize_case', { p_id: d.id, p_status: CaseStatus.rejected, p_meta: { rejected_because: reasons } });
@@ -410,6 +484,18 @@ async function tick(options: { target?: Target; full?: boolean }): Promise<Outco
   const pending = options.target ? undefined : (plan.draft as Draft | null) ?? undefined;
 
   if (pending && pending.case_date < plan.today) return rejectExpired(pending);
+
+  const tomorrow = new Date(`${plan.today}T12:00:00Z`);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  const urgentSlot = missing.some((m) => m.date <= tomorrow.toISOString().slice(0, 10));
+  if (!pending && !options.target && !urgentSlot) {
+    const untranslated = await nextTranslation();
+    if (untranslated) {
+      const model = CONFIG.translateModel();
+      const { data: until } = await db.rpc('admin_quota_until', { p_model: model });
+      if (!until || new Date(until as string).getTime() <= Date.now()) return translateCase(untranslated);
+    }
+  }
 
   const nextModel = !pending || pending.revision_request
     ? CONFIG.model()

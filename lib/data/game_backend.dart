@@ -108,6 +108,8 @@ abstract class GameBackend {
 
   Future<Stats> stats();
 
+  void setLanguage(String language);
+
   Future<GlobalStats?> caseStats(String caseRef);
 
   Future<Teaser?> tomorrowTeaser(Difficulty difficulty);

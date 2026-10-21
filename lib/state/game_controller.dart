@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/game_backend.dart';
 import '../l10n/app_localizations.dart';
 import '../l10n/labels.dart';
+import '../l10n/language.dart';
 import '../logic/rules.dart';
 import '../models/case_file.dart';
 import '../models/feedback.dart';
@@ -35,10 +36,41 @@ class GameController extends ChangeNotifier {
     required this.backend,
     required SharedPreferences prefs,
     DateTime Function()? clock,
+    this.languages = const [defaultLanguage],
+    String? deviceLanguage,
   })  : _prefs = prefs,
-        _clock = clock ?? DateTime.now;
+        _clock = clock ?? DateTime.now,
+        language = ValueNotifier(defaultLanguage) {
+    final stored = prefs.getString(_languageKey);
+    language.value = stored != null && languages.contains(stored)
+        ? stored
+        : (deviceLanguage != null && languages.contains(deviceLanguage) ? deviceLanguage : languages.first);
+    backend.setLanguage(language.value);
+  }
 
   final GameBackend backend;
+  final List<String> languages;
+  final ValueNotifier<String> language;
+
+  static const _languageKey = 'daily-case:language';
+
+  bool get canChangeLanguage => languages.length > 1;
+
+  bool get needsLanguageChoice => canChangeLanguage && !languages.contains(_prefs.getString(_languageKey));
+
+  Future<void> setLanguage(String code) async {
+    if (!languages.contains(code)) return;
+    await _prefs.setString(_languageKey, code);
+    final changed = language.value != code;
+    language.value = code;
+    backend.setLanguage(code);
+    if (changed) {
+      _archived = null;
+      await load();
+    } else {
+      notifyListeners();
+    }
+  }
   final SharedPreferences _prefs;
   final DateTime Function() _clock;
 

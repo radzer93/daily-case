@@ -7,9 +7,11 @@ import {
   decideEditorial,
   downgradeTarget,
   evaluateSolverRuns,
+  joinCase,
   revisable,
   splitCase,
   structureChanges,
+  translationProblems,
   validateCase,
 } from './validate.ts';
 import { parseRetryDelayMs, QuotaExceededError, quotaError } from './llm.ts';
@@ -226,4 +228,29 @@ Deno.test('revision must keep ids and the solution', () => {
   const hint = base();
   hint.evidence[0].hint = true;
   assert(structureChanges(base(), hint).includes('evidence ids or hint flags changed'));
+});
+
+Deno.test('joinCase restores the case stored as content and secret', () => {
+  const c = base();
+  const { content, secret } = splitCase(c);
+  const joined = joinCase(c.title, content, secret);
+  assertEquals(joined.evidence, c.evidence);
+  assertEquals(joined.solution, c.solution);
+  assertEquals(structureChanges(c, joined), []);
+});
+
+Deno.test('translation must keep structure and every text', () => {
+  assertEquals(translationProblems(base(), base()), []);
+  const moved = base();
+  moved.solution.motive = 'spadek';
+  assert(translationProblems(base(), moved).includes('solution changed'));
+  const empty = base();
+  empty.evidence[0].text = '';
+  assert(translationProblems(base(), empty).includes('empty or overlong text field'));
+  const shorter = base();
+  shorter.brief = shorter.brief.slice(0, 1);
+  assert(translationProblems(base(), shorter).includes('paragraph count changed'));
+  const renamed = base();
+  renamed.suspects[0].name = 'John Smith';
+  assert(translationProblems(base(), renamed).includes('suspect names or ages changed'));
 });

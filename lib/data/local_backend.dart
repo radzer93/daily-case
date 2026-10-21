@@ -222,6 +222,9 @@ class LocalGameBackend implements GameBackend {
   }
 
   @override
+  void setLanguage(String language) {}
+
+  @override
   Future<GlobalStats?> caseStats(String caseRef) async => null;
 
   @override

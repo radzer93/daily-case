@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../l10n/language.dart';
 import '../models/case_file.dart';
 import '../models/feedback.dart';
 import '../models/global_stats.dart';
@@ -7,15 +9,28 @@ import '../models/progress.dart';
 import 'game_backend.dart';
 
 class SupabaseGameBackend implements GameBackend {
-  SupabaseGameBackend(this._client);
+  SupabaseGameBackend(this._client, {String language = defaultLanguage}) : _language = language;
 
   final SupabaseClient _client;
+  String _language;
+
+  @override
+  void setLanguage(String language) => _language = language;
+
+  void _applyLanguage() {
+    try {
+      _client.rest.headers[languageHeader] = _language;
+    } catch (e) {
+      debugPrint('SupabaseGameBackend.setLanguage: $e');
+    }
+  }
 
   Future<dynamic> _rpc(String fn, [Map<String, dynamic>? params]) async {
     try {
       if (_client.auth.currentSession == null) {
         await _client.auth.signInAnonymously();
       }
+      _applyLanguage();
       return await _client.rpc(fn, params: params);
     } on PostgrestException catch (e) {
       throw BackendException(_error(e.message), e.message);

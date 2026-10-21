@@ -11,6 +11,7 @@ import 'age_gate_screen.dart';
 import 'archive_screen.dart';
 import 'case_tabs.dart';
 import 'difficulty_screen.dart';
+import 'language_screen.dart';
 
 class CaseScreen extends StatefulWidget {
   const CaseScreen({super.key, required this.controller});
@@ -68,6 +69,7 @@ class _CaseScreenState extends State<CaseScreen>
       builder: (context, _) {
         final colors = context.colors;
         final l = AppLocalizations.of(context);
+        if (c.needsLanguageChoice) return LanguageScreen(controller: c);
         if (c.ageGate != AgeGate.allowed) return AgeGateScreen(controller: c);
         if (c.needsDifficultyChoice) return DifficultyScreen(controller: c);
 
@@ -99,6 +101,12 @@ class _CaseScreenState extends State<CaseScreen>
           ),
           actions: [
             Center(child: StreakChip(streak: c.stats.streak)),
+            if (c.canChangeLanguage)
+              IconButton(
+                tooltip: l.languageTooltip,
+                icon: const Icon(Icons.translate),
+                onPressed: () => showLanguagePicker(context, c),
+              ),
             IconButton(
               tooltip: l.archive,
               icon: const Icon(Icons.inventory_2_outlined),

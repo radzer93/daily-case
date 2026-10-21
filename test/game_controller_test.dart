@@ -314,4 +314,47 @@ void main() {
     await pumpEventQueue();
     expect(g.globalStats, isNull);
   });
+
+  group('language', () {
+    test('a single language never asks', () async {
+      final g = await loaded();
+      expect(g.canChangeLanguage, isFalse);
+      expect(g.needsLanguageChoice, isFalse);
+      expect(g.language.value, 'pl');
+    });
+
+    test('with two languages the first launch asks and the choice is remembered', () async {
+      final g = GameController(
+        backend: backend(),
+        prefs: prefs,
+        clock: () => now,
+        languages: const ['pl', 'en'],
+        deviceLanguage: 'en',
+      );
+      await g.load();
+      expect(g.needsLanguageChoice, isTrue);
+      expect(g.language.value, 'en');
+
+      await g.setLanguage('pl');
+      expect(g.needsLanguageChoice, isFalse);
+      expect(g.language.value, 'pl');
+
+      final again = GameController(
+        backend: backend(),
+        prefs: prefs,
+        clock: () => now,
+        languages: const ['pl', 'en'],
+        deviceLanguage: 'en',
+      );
+      expect(again.needsLanguageChoice, isFalse);
+      expect(again.language.value, 'pl');
+    });
+
+    test('unknown languages are ignored', () async {
+      final g = GameController(backend: backend(), prefs: prefs, clock: () => now, languages: const ['pl', 'en']);
+      await g.setLanguage('de');
+      expect(g.needsLanguageChoice, isTrue);
+      expect(g.language.value, 'pl');
+    });
+  });
 }

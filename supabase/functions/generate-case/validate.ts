@@ -274,3 +274,47 @@ export function structureChanges(before: GeneratedCase, after: GeneratedCase): s
   if (sol(before) !== sol(after)) changes.push('solution changed');
   return changes;
 }
+
+export function joinCase(title: string, content: Record<string, unknown>, secret: Record<string, unknown>): GeneratedCase {
+  const hints = (secret.hints ?? {}) as Record<string, string>;
+  const evidence = ((content.evidence ?? []) as { id: string; title: string; text?: string; hint?: boolean }[]).map((e) => ({
+    id: e.id,
+    title: e.title,
+    text: e.hint ? hints[e.id] ?? '' : e.text ?? '',
+    hint: e.hint === true,
+  }));
+  return {
+    title,
+    docket: content.docket as string,
+    place: content.place as string,
+    date: content.date as string,
+    brief: (content.brief ?? []) as string[],
+    suspects: (content.suspects ?? []) as GeneratedCase['suspects'],
+    evidence,
+    motives: (content.motives ?? []) as GeneratedCase['motives'],
+    deduction: (secret.deduction ?? []) as GeneratedCase['deduction'],
+    false_leads: (secret.false_leads ?? []) as GeneratedCase['false_leads'],
+    solution: secret.solution as GeneratedCase['solution'],
+    innocence_check: (secret.innocence_check ?? []) as GeneratedCase['innocence_check'],
+  };
+}
+
+export function translationProblems(original: GeneratedCase, translated: GeneratedCase): string[] {
+  const problems = structureChanges(original, translated);
+  if (!isStr(translated?.title, 60)) problems.push('title missing');
+  if (!isStr(translated?.place, 80) || !isStr(translated?.date, 60)) problems.push('place or date missing');
+  if (translated?.docket !== original.docket) problems.push('docket changed');
+  const people = (c: GeneratedCase | undefined) => (c?.suspects ?? []).map((s) => `${s.id}:${s.name}:${s.age}`).join(',');
+  if (people(original) !== people(translated)) problems.push('suspect names or ages changed');
+  const texts = [
+    ...(translated?.brief ?? []),
+    ...(translated?.suspects ?? []).flatMap((s) => [s.role, ...(s.statement ?? [])]),
+    ...(translated?.evidence ?? []).flatMap((e) => [e.title, e.text]),
+    ...(translated?.motives ?? []).map((m) => m.label),
+    ...(translated?.solution?.explain ?? []),
+  ];
+  if (texts.some((t) => !isStr(t, 2000))) problems.push('empty or overlong text field');
+  const lengths = (c: GeneratedCase) => (c.brief ?? []).length + (c.solution?.explain ?? []).length;
+  if (original && translated && lengths(original) !== lengths(translated)) problems.push('paragraph count changed');
+  return problems;
+}

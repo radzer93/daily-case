@@ -452,5 +452,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "chooseLanguageTitle": "WYBIERZ JĘZYK",
+  "chooseLanguageBody": "Język zmienisz w każdej chwili ikoną na górze ekranu sprawy.",
+  "languageTooltip": "Język",
+  "untranslatedNote": "Sprawy, których jeszcze nie przetłumaczono, wyświetlą się po polsku."
 }

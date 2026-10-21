@@ -1,4 +1,8 @@
+import 'dart:ui';
+
+import 'package:daily_case/l10n/app_localizations_en.dart';
 import 'package:daily_case/l10n/app_localizations_pl.dart';
+import 'package:daily_case/l10n/language.dart';
 import 'package:daily_case/logic/rules.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -111,5 +115,42 @@ void main() {
       streak: 4,
     );
     expect(text, 'Sprawa Dnia #3 · Lep na muchy\n🟩🟥🟩\n🟩🟩🟩\nEkspertyzy: 0 · 80 pkt · seria 4');
+  });
+
+  group('language', () {
+    test('device language wins when it is enabled', () {
+      expect(resolveLanguage(const [Locale('en', 'GB'), Locale('pl')], ['pl', 'en']), 'en');
+      expect(resolveLanguage(const [Locale('de'), Locale('pl')], ['pl', 'en']), 'pl');
+    });
+    test('falls back to Polish, or the first enabled language', () {
+      expect(resolveLanguage(const [Locale('en')], ['pl']), 'pl');
+      expect(resolveLanguage(const [Locale('de')], ['en']), 'en');
+    });
+    test('language list is parsed safely', () {
+      expect(parseLanguages('pl, EN ,xyz,'), ['pl', 'en']);
+      expect(parseLanguages(''), ['pl']);
+      expect(supportedLanguages(['pl', 'de'], ['en', 'pl']), ['pl']);
+      expect(supportedLanguages(['de'], ['en', 'pl']), ['pl']);
+    });
+  });
+
+  test('English texts use English plurals and share text', () {
+    final en = AppLocalizationsEn();
+    expect(en.attemptsLeft(1, 0), '1 attempt · lab reports: 0');
+    expect(en.attemptsLeft(3, 2), '3 attempts · lab reports: 2');
+    final text = buildShareText(
+      en,
+      title: 'The Fly Trap',
+      day: 3,
+      rows: const [
+        [true, true, true],
+      ],
+      hints: 0,
+      won: true,
+      score: 100,
+      streak: 2,
+      level: 'Hard',
+    );
+    expect(text, 'Case of the Day #3 · HARD · The Fly Trap\n🟩🟩🟩\nLab reports: 0 · 100 pts · streak 2');
   });
 }
