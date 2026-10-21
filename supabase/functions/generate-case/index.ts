@@ -154,7 +154,7 @@ async function generateDraft(target: Target, recent: RecentCase[]): Promise<Outc
     p_title: draft.title,
     p_content: content,
     p_secret: { ...secret, draft },
-    p_meta: { source: 'ai', seed, provider: client.provider, usage: gen.usage },
+    p_meta: { source: 'ai', seed, provider: client.provider, usage: gen.usage, attempts: gen.attempts ?? 1 },
     p_model: client.model,
   });
   if (error) {
@@ -245,6 +245,7 @@ async function reviewDraft(d: Draft, recent: RecentCase[], missing: Target[]): P
   const others = recent.filter((r) => r.id !== d.id);
 
   let review: EditorReview;
+  let editorAttempts = 1;
   try {
     const res = await client.generate<EditorReview>({
       system: EDITOR_SYSTEM,
@@ -256,6 +257,7 @@ async function reviewDraft(d: Draft, recent: RecentCase[], missing: Target[]): P
       temperature: 0.3,
     });
     review = res.data;
+    editorAttempts = res.attempts ?? 1;
   } catch (e) {
     if (e instanceof QuotaExceededError) return quotaOutcome(e, client.model, d.case_date, d.difficulty, 'editor');
     const { data: outcome } = await db.rpc('admin_note_draft_failure', { p_id: d.id, p_error: String(e).slice(0, 500) });
@@ -298,6 +300,7 @@ async function reviewDraft(d: Draft, recent: RecentCase[], missing: Target[]): P
     decision: verdict.decision,
     reasons: verdict.reasons,
     model: client.model,
+    attempts: editorAttempts,
     downgraded_from: downgradedFrom,
   };
 

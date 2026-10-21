@@ -1,4 +1,13 @@
-import { type LlmClient, quotaError, RETRYABLE_STATUS, sleep, type StructuredRequest, type StructuredResponse } from './llm.ts';
+import {
+  type LlmClient,
+  MAX_ATTEMPTS,
+  MAX_SERVER_ERROR_ATTEMPTS,
+  quotaError,
+  RETRYABLE_STATUS,
+  sleep,
+  type StructuredRequest,
+  type StructuredResponse,
+} from './llm.ts';
 
 const ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/interactions';
 
@@ -44,7 +53,7 @@ export function geminiClient(apiKey: string, model: string, thinkingLevel = 'hig
       };
 
       let lastError = '';
-      for (let attempt = 0; attempt < 4; attempt++) {
+      for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
         if (attempt > 0) await sleep(5000 * attempt);
 
         const res = await fetch(ENDPOINT, {
@@ -57,8 +66,9 @@ export function geminiClient(apiKey: string, model: string, thinkingLevel = 'hig
           lastError = `Gemini API ${res.status}: ${(await res.text()).slice(0, 500)}`;
           const quota = quotaError(res.status, lastError);
           if (quota) throw quota;
-          if (RETRYABLE_STATUS.has(res.status)) continue;
-          throw new Error(lastError);
+          const limit = res.status >= 500 ? MAX_SERVER_ERROR_ATTEMPTS : MAX_ATTEMPTS;
+          if (RETRYABLE_STATUS.has(res.status) && attempt + 1 < limit) continue;
+          throw new Error(`${lastError} (attempts: ${attempt + 1})`);
         }
 
         const data = (await res.json()) as InteractionResponse;
@@ -68,7 +78,7 @@ export function geminiClient(apiKey: string, model: string, thinkingLevel = 'hig
         const text = extractOutputText(data);
         if (!text) throw new Error(`Gemini returned no text output (${r.name}).`);
         try {
-          return { data: JSON.parse(text) as T, usage: data.usage ?? {} };
+          return { data: JSON.parse(text) as T, usage: data.usage ?? {}, attempts: attempt + 1 };
         } catch {
           throw new Error(`Gemini output is not valid JSON (${r.name}): ${text.slice(0, 200)}`);
         }

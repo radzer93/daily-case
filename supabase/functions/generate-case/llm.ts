@@ -11,6 +11,7 @@ export interface StructuredRequest {
 export interface StructuredResponse<T> {
   data: T;
   usage: Record<string, unknown>;
+  attempts?: number;
 }
 
 export interface LlmClient {
@@ -20,6 +21,8 @@ export interface LlmClient {
 }
 
 export const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504, 529]);
+export const MAX_ATTEMPTS = 4;
+export const MAX_SERVER_ERROR_ATTEMPTS = 2;
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
